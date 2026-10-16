@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "sportslink",
+    "name": "SportsLink",
     "slug": "sportslink",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,18 +8,22 @@
     "scheme": "sportslink",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.sportslink.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.sportslink.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#00274C",
+        "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
+      "bundler": "metro",
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
@@ -28,15 +32,20 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "resizeMode": "contain",
+          "imageWidth": 160,
+          "backgroundColor": "#00274C"
         }
-      ]
+      ],
+      "expo-image",
+      "expo-font",
+      "expo-secure-store",
+      "expo-notifications",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     }
   }
 }
