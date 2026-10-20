@@ -1,6 +1,8 @@
-import { Alert, Text, View } from "react-native";
+import { useState } from "react";
+import { Alert, Modal, Text, View } from "react-native";
 import { useAppTheme } from "@/components/theme";
-import { FieldLabel } from "@/components/ui/bits";
+import { Field, FieldLabel } from "@/components/ui/bits";
+import { Button } from "@/components/ui/button";
 import { ListSection } from "@/components/ui/list-section";
 import { Screen } from "@/components/ui/screen";
 import { SegmentedTabs } from "@/components/ui/segmented-tabs";
@@ -14,6 +16,9 @@ export default function Settings() {
   const theme = useAppStore((s) => s.themeOverride);
   const patch = useAppStore((s) => s.patch);
   const blocked = useAppStore((s) => s.blockedIds.length);
+  // Android has no Alert.prompt, so it gets a small modal instead.
+  const [passwordModal, setPasswordModal] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
 
   const confirmDelete = () =>
     Alert.alert("Delete your account?", "Your profile, free time, friends and messages are permanently removed. Games you host pass to another player. This can't be undone.", [
@@ -21,7 +26,17 @@ export default function Settings() {
       { text: "Delete account", style: "destructive", onPress: () => deleteAccount().catch((e) => Alert.alert("Couldn't delete account", (e as Error).message)) },
     ]);
 
-  const promptPassword = () =>
+  const savePassword = (value: string) =>
+    changePassword(value)
+      .then(() => Alert.alert("Password changed"))
+      .catch((e) => Alert.alert("Couldn't change password", (e as Error).message));
+
+  const promptPassword = () => {
+    if (process.env.EXPO_OS !== "ios") {
+      setNewPassword("");
+      setPasswordModal(true);
+      return;
+    }
     Alert.prompt(
       "Change password",
       `At least ${MIN_PASSWORD_LENGTH} characters.`,
@@ -29,14 +44,12 @@ export default function Settings() {
         { text: "Cancel", style: "cancel" },
         {
           text: "Save",
-          onPress: (value?: string) =>
-            changePassword(value ?? "")
-              .then(() => Alert.alert("Password changed"))
-              .catch((e) => Alert.alert("Couldn't change password", (e as Error).message)),
+          onPress: (value?: string) => savePassword(value ?? ""),
         },
       ],
       "secure-text"
     );
+  };
 
   return (
     <Screen nativeHeader bottomInset={140}>
@@ -67,6 +80,27 @@ export default function Settings() {
         SportsLink 1.0{DEMO ? " · Demo mode (no backend connected)" : ""}
         {"\n"}Not affiliated with the University of Michigan.
       </Text>
+
+      <Modal visible={passwordModal} transparent animationType="fade" onRequestClose={() => setPasswordModal(false)}>
+        <View style={{ flex: 1, justifyContent: "center", padding: spacing.lg, backgroundColor: "rgba(0,0,0,0.4)" }}>
+          <View style={{ gap: spacing.sm, padding: spacing.lg, borderRadius: 16, backgroundColor: colors.cardSolid }}>
+            <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: typeScale.subtitle, color: colors.text }}>Change password</Text>
+            <Text style={{ fontFamily: fonts.body, fontSize: typeScale.body, color: colors.textSecondary }}>At least {MIN_PASSWORD_LENGTH} characters.</Text>
+            <Field value={newPassword} onChangeText={setNewPassword} secureTextEntry autoFocus autoCapitalize="none" autoComplete="new-password" />
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: spacing.xs }}>
+              <Button label="Cancel" variant="outline" size="md" onPress={() => setPasswordModal(false)} />
+              <Button
+                label="Save"
+                size="md"
+                onPress={() => {
+                  setPasswordModal(false);
+                  savePassword(newPassword);
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }

@@ -1,4 +1,4 @@
-import DateTimePicker from "@react-native-community/datetimepicker";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -16,7 +16,7 @@ import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { fonts, spacing, typeScale } from "@/constants/theme";
 import { postGame, updateGame } from "@/lib/api";
 import { fitsSchedule } from "@/lib/availability";
-import { formatDuration, nextOccurrence } from "@/lib/dates";
+import { formatDate, formatDuration, formatTime, nextOccurrence } from "@/lib/dates";
 import { locationsForSport, OTHER_LOCATION_ID } from "@/lib/locations";
 import { joinedPlayers } from "@/lib/selectors";
 import { MIN_RELIABILITY_OPTIONS } from "@/lib/reliability";
@@ -56,6 +56,18 @@ function Stepper({ label, hint, value, min, max, step = 1, display, onChange }: 
       <Text style={{ minWidth: display ? 92 : 30, textAlign: "center", fontFamily: fonts.display, fontSize: display ? 16 : 20, color: colors.text, fontVariant: ["tabular-nums"] }}>{display ?? value}</Text>
       {button("plus", value + step)}
     </View>
+  );
+}
+
+// Android has no inline picker: the native one is a dialog, and it opens as
+// soon as a <DateTimePicker> is mounted. So Android shows the current value
+// as a button that opens the dialog.
+function AndroidPickerButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const { colors } = useAppTheme();
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => ({ backgroundColor: colors.fill, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7, opacity: pressed ? 0.6 : 1 })}>
+      <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.body, color: colors.text }}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -158,12 +170,20 @@ export default function PostGame() {
           <Card padding={0}>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, paddingLeft: spacing.md, paddingRight: spacing.xs }}>
               <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.body, color: colors.text }}>Date</Text>
-              <DateTimePicker value={when} mode="date" display="compact" minimumDate={today} themeVariant={scheme} accentColor={colors.tint} onValueChange={(_, d) => setWhen(d)} />
+              {process.env.EXPO_OS === "ios" ? (
+                <DateTimePicker value={when} mode="date" display="compact" minimumDate={today} themeVariant={scheme} accentColor={colors.tint} onValueChange={(_, d) => setWhen(d)} />
+              ) : (
+                <AndroidPickerButton label={formatDate(when)} onPress={() => DateTimePickerAndroid.open({ value: when, mode: "date", minimumDate: today, onValueChange: (_, d) => setWhen(d) })} />
+              )}
             </View>
             <Divider inset={spacing.md} />
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 8, paddingLeft: spacing.md, paddingRight: spacing.xs }}>
               <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.body, color: colors.text }}>Start time</Text>
-              <DateTimePicker value={when} mode="time" display="compact" minuteInterval={5} themeVariant={scheme} accentColor={colors.tint} onValueChange={(_, d) => setWhen(d)} />
+              {process.env.EXPO_OS === "ios" ? (
+                <DateTimePicker value={when} mode="time" display="compact" minuteInterval={5} themeVariant={scheme} accentColor={colors.tint} onValueChange={(_, d) => setWhen(d)} />
+              ) : (
+                <AndroidPickerButton label={formatTime(when)} onPress={() => DateTimePickerAndroid.open({ value: when, mode: "time", onValueChange: (_, d) => setWhen(d) })} />
+              )}
             </View>
             <Divider inset={spacing.md} />
             <Stepper label="How long" value={durationMin} min={15} max={480} step={15} display={formatDuration(durationMin)} onChange={setDurationMin} />

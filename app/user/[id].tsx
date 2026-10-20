@@ -16,6 +16,9 @@ export default function UserSheet() {
   const { colors } = useAppTheme();
   const router = useRouter();
   const [user, setUser] = useState<Profile | null | undefined>(undefined);
+  // Android alerts show at most three buttons, too few for the reasons, so
+  // Android lists them in the sheet instead.
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     fetchProfile(id).then(setUser).catch(() => setUser(null));
@@ -29,11 +32,18 @@ export default function UserSheet() {
     }
   };
 
-  const report = () =>
+  const sendReport = (reason: string) => run(() => reportUser(id, reason)).then(() => Alert.alert("Thanks", "We'll review this report."));
+
+  const report = () => {
+    if (Platform.OS !== "ios") {
+      setReporting(true);
+      return;
+    }
     Alert.alert("Report player", "What happened?", [
-      ...REPORT_REASONS.map((reason) => ({ text: reason, onPress: () => run(() => reportUser(id, reason)).then(() => Alert.alert("Thanks", "We'll review this report.")) })),
+      ...REPORT_REASONS.map((reason) => ({ text: reason, onPress: () => sendReport(reason) })),
       { text: "Cancel", style: "cancel" as const },
     ]);
+  };
 
   const block = () =>
     Alert.alert("Block this player?", "You won't see each other's games or profiles. They won't be told.", [
@@ -74,7 +84,27 @@ export default function UserSheet() {
 
       {user.bio ? <Text style={{ fontFamily: fonts.body, fontSize: typeScale.body, lineHeight: 22, color: colors.text }}>{user.bio}</Text> : null}
 
-      <Button label="Report or block" variant="outline" size="md" icon="ellipsis" onPress={more} />
+      {reporting ? (
+        <View style={{ gap: spacing.xs }}>
+          <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: typeScale.body, color: colors.text }}>What happened?</Text>
+          {REPORT_REASONS.map((reason) => (
+            <Button
+              key={reason}
+              label={reason}
+              variant="outline"
+              size="md"
+              fullWidth
+              onPress={() => {
+                setReporting(false);
+                sendReport(reason);
+              }}
+            />
+          ))}
+          <Button label="Cancel" variant="ghost" size="md" fullWidth onPress={() => setReporting(false)} />
+        </View>
+      ) : (
+        <Button label="Report or block" variant="outline" size="md" icon="ellipsis" onPress={more} />
+      )}
     </ScrollView>
   );
 }
