@@ -1,6 +1,6 @@
 import { dayKey } from "@/lib/dates";
 import { buildGames, buildHistory, ME_ID, mini, MOCK_USERS, mockUserById } from "@/lib/mock";
-import { cancelGameReminder, scheduleGameReminder } from "@/lib/notifications";
+import { cancelAllGameReminders, cancelGameReminder, scheduleGameReminder, syncGameReminders } from "@/lib/notifications";
 import { isLateLeave, meetsMinimum, reliabilityScore } from "@/lib/reliability";
 import { Invite, useAppStore } from "@/lib/store";
 import { DEMO, supabase } from "@/lib/supabase";
@@ -54,8 +54,11 @@ export async function signInOrSignUp(email: string, password: string, exists: bo
     await loadAll();
     return;
   }
-  const { error } = exists ? await db().auth.signInWithPassword({ email, password }) : await db().auth.signUp({ email, password });
+  const { data, error } = exists ? await db().auth.signInWithPassword({ email, password }) : await db().auth.signUp({ email, password });
   if (error) throw new Error(error.message === "Invalid login credentials" ? "Wrong password for that uniqname." : error.message);
+  // signUp returns no session when the Supabase project still has email
+  // confirmations on (see README), and nothing would happen on screen.
+  if (!data.session) throw new Error("Your account was created, but this SportsLink server requires email confirmation, which MVP1 doesn't support. Ask the team to turn it off in Supabase.");
   // onAuthStateChange in app/_layout.tsx flips isAuthed and calls loadAll.
 }
 
@@ -68,6 +71,8 @@ export async function changePassword(password: string) {
   if (error) throw new Error(error.message);
 }
 
+// In live mode, the SIGNED_OUT handler in app/_layout.tsx clears this
+// device's cached data and reminders.
 export async function signOut() {
   if (!DEMO) await db().auth.signOut();
   store().patch({ isAuthed: false });
@@ -78,6 +83,7 @@ export async function deleteAccount() {
     await rpc("delete_own_account");
     await db().auth.signOut();
   }
+  await cancelAllGameReminders();
   store().reset();
 }
 
@@ -120,11 +126,14 @@ export async function loadAll() {
   const data = await rpc<Bootstrap>("bootstrap");
   const { onboarded, ...me } = data.me;
   store().patch({ ...data, me, hasOnboarded: onboarded });
+  syncGameReminders(data.games, me.id);
 }
 
 export async function refreshGames() {
   if (DEMO) return loadAll();
-  store().patch({ games: await rpc<Game[]>("get_games") });
+  const games = await rpc<Game[]>("get_games");
+  store().patch({ games });
+  syncGameReminders(games, store().me?.id);
 }
 
 // ── Profile & availability ──────────────────────────────────────────────

@@ -33,6 +33,15 @@ export const myPast = (games: Game[], meId: string | undefined, now = new Date()
     .filter((g) => g.status !== "cancelled" && hasEnded(g, now) && myStatus(g, meId) === "joined")
     .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
 
-// A hosted game that has kicked off but whose attendance is still unmarked.
+// How long after kickoff the host can still mark attendance. Mirrors the
+// 7-day limit in `mark_attendance`.
+const ATTENDANCE_WINDOW_MS = 7 * 24 * 60 * 60_000;
+
+// A hosted game that has kicked off, is still within the marking window, and
+// whose attendance is still unmarked.
 export const needsAttendance = (g: Game, meId: string | undefined, now = new Date()) =>
-  isHost(g, meId) && hasStarted(g, now) && g.status !== "cancelled" && joinedPlayers(g).some((p) => p.attended === null && p.user.id !== meId);
+  isHost(g, meId) &&
+  hasStarted(g, now) &&
+  now.getTime() - new Date(g.startsAt).getTime() < ATTENDANCE_WINDOW_MS &&
+  g.status !== "cancelled" &&
+  joinedPlayers(g).some((p) => p.attended === null && p.user.id !== meId);

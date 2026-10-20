@@ -9,6 +9,7 @@ import "react-native-reanimated";
 
 import { AppThemeProvider, useAppTheme } from "@/components/theme";
 import { loadAll } from "@/lib/api";
+import { cancelAllGameReminders } from "@/lib/notifications";
 import { useAppStore } from "@/lib/store";
 import { supabase } from "@/lib/supabase";
 
@@ -64,6 +65,11 @@ export default function RootLayout() {
         loadAll()
           .catch(() => {})
           .finally(() => useAppStore.getState().patch({ isAuthed: true }));
+      } else if (event === "SIGNED_OUT") {
+        // Don't leave the last account's games, profile or reminders on the
+        // device for whoever signs in next. reset() also clears isAuthed.
+        cancelAllGameReminders();
+        useAppStore.getState().reset();
       } else if (!session) {
         useAppStore.getState().patch({ isAuthed: false });
       }

@@ -8,31 +8,68 @@ Notifications.setNotificationHandler({
 });
 
 const REMINDER_LEAD_MS = 2 * 60 * 60_000;
-const reminderId = (gameId: string) => `game-${gameId}`;
+const REMINDER_PREFIX = "game-";
+const reminderId = (gameId: string) => `${REMINDER_PREFIX}${gameId}`;
+const reminderBody = (game: Game) => `Still in for ${placeName(game)}? Confirm your spot so the group knows who's coming.`;
+const fireTime = (game: Game) => new Date(new Date(game.startsAt).getTime() - REMINDER_LEAD_MS);
+
+async function schedule(game: Game) {
+  const fireAt = fireTime(game);
+  if (fireAt.getTime() <= Date.now()) return;
+  await Notifications.scheduleNotificationAsync({
+    identifier: reminderId(game.id),
+    content: {
+      title: `${sportMeta(game.sport).name} in 2 hours`,
+      body: reminderBody(game),
+      data: { gameId: game.id, startsAt: game.startsAt },
+    },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt },
+  });
+}
 
 // Local "still in?" nudge two hours before kickoff - the cheapest no-show
 // defence there is. Asking permission is deferred to the first join so the
 // prompt arrives with obvious context. Never throws: reminders are a nicety.
 export async function scheduleGameReminder(game: Game) {
   try {
-    const fireAt = new Date(new Date(game.startsAt).getTime() - REMINDER_LEAD_MS);
-    if (fireAt.getTime() <= Date.now()) return;
+    if (fireTime(game).getTime() <= Date.now()) return;
     const { granted } = await Notifications.requestPermissionsAsync();
-    if (!granted) return;
-    await Notifications.scheduleNotificationAsync({
-      identifier: reminderId(game.id),
-      content: {
-        title: `${sportMeta(game.sport).name} in 2 hours`,
-        body: `Still in for ${placeName(game)}? Confirm your spot so the group knows who's coming.`,
-        data: { gameId: game.id },
-      },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireAt },
-    });
+    if (granted) await schedule(game);
   } catch {}
 }
 
 export async function cancelGameReminder(gameId: string) {
   try {
     await Notifications.cancelScheduledNotificationAsync(reminderId(gameId));
+  } catch {}
+}
+
+// Reminders live on this device only, so they go stale when someone else
+// changes a game: the host cancels or moves it. After each load from the
+// server, drop reminders for games the viewer is no longer in (or that
+// changed) and schedule any that are missing. Never asks for permission.
+export async function syncGameReminders(games: Game[], meId: string | undefined) {
+  try {
+    const wanted = new Map(
+      games.filter((g) => g.status === "open" && g.participants.some((p) => p.user.id === meId)).map((g) => [reminderId(g.id), g])
+    );
+    for (const n of await Notifications.getAllScheduledNotificationsAsync()) {
+      if (!n.identifier.startsWith(REMINDER_PREFIX)) continue;
+      const game = wanted.get(n.identifier);
+      if (game && n.content.data?.startsAt === game.startsAt && n.content.body === reminderBody(game)) {
+        wanted.delete(n.identifier);
+      } else {
+        await Notifications.cancelScheduledNotificationAsync(n.identifier);
+      }
+    }
+    const { granted } = await Notifications.getPermissionsAsync();
+    if (!granted) return;
+    for (const game of wanted.values()) await schedule(game);
+  } catch {}
+}
+
+export async function cancelAllGameReminders() {
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
   } catch {}
 }
