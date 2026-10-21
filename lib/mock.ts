@@ -144,6 +144,9 @@ export function buildGames(now = new Date()): Game[] {
         isOfficial: false,
         visibility: "campus",
         status: "open",
+        // About a third of hosts booked their field; a few are still waiting to hear back.
+        fieldBooking: games.length % 3 === 0 ? "confirmed" : games.length % 7 === 1 ? "requested" : "none",
+        bookingRef: games.length % 3 === 0 ? `${236100 + games.length * 37}` : "",
         participants: participants(rand, host, Math.min(joined, capacity), startsAt, minReliability),
       });
     }
@@ -218,6 +221,8 @@ export function buildHistory(me: MiniProfile, now = new Date()): Game[] {
       isOfficial: false,
       visibility: "campus",
       status: "completed",
+      fieldBooking: "none",
+      bookingRef: "",
       participants: [mine, ...others],
     };
   });
@@ -231,7 +236,7 @@ export function buildMyUpcoming(me: MiniProfile, now = new Date()): Game[] {
   const soon = new Date(Math.ceil((now.getTime() + 75 * 60_000) / (5 * 60_000)) * 5 * 60_000);
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 18, 0);
   const host = MOCK_USERS.find((u) => u.ratedGames > 0 && u.reliability >= 90) ?? MOCK_USERS[0];
-  const base = { sport: SOCCER, customSport: "", locationNote: "", durationMin: 90, skill: "any" as SkillLevel, notes: "", isOfficial: false, visibility: "campus" as const, status: "open" as const };
+  const base = { sport: SOCCER, customSport: "", locationNote: "", durationMin: 90, skill: "any" as SkillLevel, notes: "", isOfficial: false, visibility: "campus" as const, status: "open" as const, fieldBooking: "none" as const, bookingRef: "" };
   const joinedNow = (u: MiniProfile, hosting: boolean): Participant => ({ user: u, status: "joined", joinedAt: new Date(now.getTime() - 3_600_000).toISOString(), confirmed: hosting, attended: null });
   const soonSize = formatSizing("5v5", SOCCER);
   const hostSize = formatSizing("7v7", SOCCER);
@@ -245,6 +250,8 @@ export function buildMyUpcoming(me: MiniProfile, now = new Date()): Game[] {
       ...soonSize,
       minReliability: 80,
       notes: "Bring a dark and a light shirt.",
+      fieldBooking: "confirmed",
+      bookingRef: "237285",
       host: mini(host),
       participants: [...participants(rand, host, soonSize.minPlayers - 2, soon, 80), joinedNow(me, false)],
     },
