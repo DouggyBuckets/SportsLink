@@ -1,5 +1,5 @@
 import { dayKey } from "@/lib/dates";
-import { buildGames, buildHistory, ME_ID, mini, MOCK_USERS, mockUserById } from "@/lib/mock";
+import { buildGames, buildHistory, buildMyUpcoming, historyStats, ME_ID, mini, MOCK_USERS, mockUserById } from "@/lib/mock";
 import { cancelGameReminder, scheduleGameReminder } from "@/lib/notifications";
 import { isLateLeave, meetsMinimum, reliabilityScore } from "@/lib/reliability";
 import { Invite, useAppStore } from "@/lib/store";
@@ -103,23 +103,30 @@ export async function loadAll() {
     const games = buildGames();
     const mine = s.games.filter((g) => g.status !== "completed" && new Date(g.startsAt) > new Date() && g.participants.some((p) => p.user.id === ME_ID));
     const firstRun = s.seedDay === null;
-    const seeded = [...games.filter((g) => !mine.some((m) => m.id === g.id)), ...mine, ...buildHistory(mini(s.me))];
+    // First run (or "Reset demo data"): the viewer gets a match history and
+    // two upcoming games, with profile numbers to match.
+    const me = firstRun ? { ...s.me, ...historyStats() } : s.me;
+    const upcoming = firstRun ? buildMyUpcoming(mini(me)) : [];
+    const seeded = [...games.filter((g) => !mine.some((m) => m.id === g.id)), ...mine, ...upcoming, ...buildHistory(mini(me))];
     s.patch({
       games: seeded.sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
       seedDay: today,
-      ...(firstRun
-        ? {
-            // Matches buildHistory: three games played, one of them hosted
-            // (and still waiting on attendance), two marked present.
-            me: { ...s.me, gamesPlayed: 3, gamesHosted: 1, reliability: 100, ratedGames: 2, attended: 2 },
-          }
-        : {}),
+      me,
     });
     return;
   }
   const data = await rpc<Bootstrap>("bootstrap");
   const { onboarded, ...me } = data.me;
   store().patch({ ...data, me, hasOnboarded: onboarded });
+}
+
+// Demo only: rebuild the fake world relative to now (fresh history, a game
+// kicking off in about an hour, scores back to their starting values).
+// Keeps the viewer's name, level and free time.
+export async function resetDemoData() {
+  if (!DEMO) return;
+  store().patch({ games: [], messages: {}, seedDay: null });
+  await loadAll();
 }
 
 export async function refreshGames() {

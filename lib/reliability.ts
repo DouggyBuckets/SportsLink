@@ -30,6 +30,14 @@ export function reliabilityTone(u: Pick<MiniProfile, "reliability" | "ratedGames
   return "danger";
 }
 
+// One-word-ish verdict shown next to the score on a profile.
+export function reliabilityTier(u: Pick<MiniProfile, "reliability" | "ratedGames">): string {
+  if (isNewPlayer(u)) return "New player";
+  if (u.reliability >= 85) return "Very reliable";
+  if (u.reliability >= 70) return "Usually shows up";
+  return "Often misses games";
+}
+
 export const reliabilityLabel = (u: Pick<MiniProfile, "reliability" | "ratedGames">) => (isNewPlayer(u) ? "New player" : `${u.reliability}% reliable`);
 
 // Leaving a game is free until this close to kickoff; after that it counts

@@ -47,7 +47,7 @@ export default function ProfileTab() {
         </View>
       </Card>
 
-      <ReliabilityCard user={me} />
+      <ReliabilityCard user={me} history={past.map((g) => g.participants.find((p) => p.user.id === me.id)?.attended ?? null)} />
 
       <View style={{ marginTop: spacing.sm }}>
         <SectionTitle title="Upcoming" />

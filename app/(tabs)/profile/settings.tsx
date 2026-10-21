@@ -5,7 +5,7 @@ import { ListSection } from "@/components/ui/list-section";
 import { Screen } from "@/components/ui/screen";
 import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { fonts, spacing, typeScale } from "@/constants/theme";
-import { changePassword, deleteAccount, MIN_PASSWORD_LENGTH, signOut } from "@/lib/api";
+import { changePassword, deleteAccount, MIN_PASSWORD_LENGTH, resetDemoData, signOut } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import { DEMO } from "@/lib/supabase";
 
@@ -13,10 +13,9 @@ export default function Settings() {
   const { colors } = useAppTheme();
   const theme = useAppStore((s) => s.themeOverride);
   const patch = useAppStore((s) => s.patch);
-  const blocked = useAppStore((s) => s.blockedIds.length);
 
   const confirmDelete = () =>
-    Alert.alert("Delete your account?", "Your profile, free time, friends and messages are permanently removed. Games you host pass to another player. This can't be undone.", [
+    Alert.alert("Delete your account?", "Your profile and free time are permanently removed. Games you host pass to another player. This can't be undone.", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete account", style: "destructive", onPress: () => deleteAccount().catch((e) => Alert.alert("Couldn't delete account", (e as Error).message)) },
     ]);
@@ -53,7 +52,11 @@ export default function Settings() {
         />
       </View>
 
-      <ListSection rows={[{ key: "blocked", icon: "hand.raised.fill", iconColor: "#52627A", label: "Blocked players", value: String(blocked) }]} />
+      {DEMO ? (
+        <ListSection
+          rows={[{ key: "reset", icon: "arrow.counterclockwise", iconColor: "#0B3F73", label: "Reset demo data", onPress: () => resetDemoData().then(() => Alert.alert("Demo data reset")) }]}
+        />
+      ) : null}
 
       <ListSection
         rows={[
