@@ -88,7 +88,7 @@ export default function ProfileTab() {
                   ) : attended ? (
                     <Badge label="Showed up" tone="success" />
                   ) : (
-                    <Badge label="Not marked yet" />
+                    <Badge label="Waiting on host" />
                   )}
                 </Pressable>
               </View>

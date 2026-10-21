@@ -153,11 +153,14 @@ export function buildGames(now = new Date()): Game[] {
 
 // Past games the viewer played, so the profile's reliability card, history
 // and the host's attendance flow all have something to show on a fresh
-// install: eight showed up, one no-show (91%), three hosted - the newest of
-// which is still waiting for the viewer to mark attendance.
+// install: eight showed up, one no-show (91%), plus three games the viewer
+// hosted recently (earlier today, yesterday, 3 days ago) that are waiting
+// for them to mark attendance.
 type PastOutcome = "showed" | "missed" | "unmarked";
 const PAST: { days: number; format: string; locationId: string; hostedByMe: boolean; outcome: PastOutcome }[] = [
-  { days: 2, format: "5v5", locationId: "mitchell", hostedByMe: true, outcome: "unmarked" },
+  { days: 0, format: "5v5", locationId: "mitchell", hostedByMe: true, outcome: "unmarked" },
+  { days: 1, format: "7v7", locationId: "palmer-field", hostedByMe: true, outcome: "unmarked" },
+  { days: 3, format: "5v5", locationId: "hadley", hostedByMe: true, outcome: "unmarked" },
   { days: 4, format: "7v7", locationId: "palmer-field", hostedByMe: false, outcome: "showed" },
   { days: 6, format: "5v5", locationId: "hadley", hostedByMe: true, outcome: "showed" },
   { days: 9, format: "7v7", locationId: "hubbard-turf", hostedByMe: false, outcome: "showed" },
@@ -168,6 +171,12 @@ const PAST: { days: number; format: string; locationId: string; hostedByMe: bool
   { days: 24, format: "7v7", locationId: "palmer-field", hostedByMe: false, outcome: "showed" },
   { days: 28, format: "5v5", locationId: "hadley", hostedByMe: false, outcome: "showed" },
 ];
+
+// Today's game kicked off a bit under 3 hours ago, so it ended about an hour ago.
+const pastStart = (days: number, now: Date) =>
+  days === 0
+    ? new Date(Math.floor((now.getTime() - 165 * 60_000) / (15 * 60_000)) * 15 * 60_000)
+    : new Date(now.getFullYear(), now.getMonth(), now.getDate() - days, 17, 0);
 
 // The viewer's profile numbers implied by buildHistory.
 export function historyStats() {
@@ -185,7 +194,7 @@ export function historyStats() {
 export function buildHistory(me: MiniProfile, now = new Date()): Game[] {
   const rand = rng(7);
   return PAST.map((p, i) => {
-    const startsAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - p.days, 17, 0);
+    const startsAt = pastStart(p.days, now);
     const host = p.hostedByMe ? null : MOCK_USERS[(i * 3 + 2) % MOCK_USERS.length];
     const { capacity, minPlayers } = formatSizing(p.format, SOCCER);
     const unmarked = p.outcome === "unmarked";

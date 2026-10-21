@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { DEMO } from "@/lib/supabase";
 import { AvailabilityBlock, Friend, Game, Message, MiniProfile, Profile, SportId } from "@/lib/types";
 
 export type Invite = { gameId: string; from: MiniProfile };
@@ -73,13 +74,15 @@ export const useAppStore = create<AppState>()(
       reset: () => set((s) => ({ ...initial, themeOverride: s.themeOverride })),
     }),
     {
-      name: "sportslink",
+      // Demo and live keep separate copies so switching modes never mixes
+      // fake games into a real account (or wipes the demo world).
+      name: DEMO ? "sportslink-demo" : "sportslink",
       // Bump when bundled reference data (venues, formats) or the game shape
       // changes, so demo games generated against the old data are rebuilt.
       // Account, profile and free time carry over. v3: MVP1 - soccer only,
       // reliability always a number (new players start at 100). v4: no waitlist.
       // v5: profiles carry `attended`.
-      version: 5,
+      version: 6,
       migrate: (persisted) => {
         const data = persisted as Data;
         const me = data.me
