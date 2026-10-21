@@ -1,9 +1,18 @@
-import * as Notifications from "expo-notifications";
+import { isRunningInExpoGo } from "expo";
+import type * as NotificationsModule from "expo-notifications";
+import { Platform } from "react-native";
 import { placeName } from "@/lib/locations";
 import { sportMeta } from "@/lib/sports";
 import { Game } from "@/lib/types";
 
-Notifications.setNotificationHandler({
+// In Expo Go on Android, merely importing expo-notifications (SDK 57) throws
+// "Cannot find native module 'ExpoTopicSubscriptionModule'". So it's loaded
+// only where it works; in Android Expo Go, reminders are skipped. Use a
+// development build to test them on Android.
+const Notifications: typeof NotificationsModule | null =
+  Platform.OS === "android" && isRunningInExpoGo() ? null : require("expo-notifications");
+
+Notifications?.setNotificationHandler({
   handleNotification: async () => ({ shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),
 });
 
@@ -13,7 +22,7 @@ const reminderId = (gameId: string) => `${REMINDER_PREFIX}${gameId}`;
 const reminderBody = (game: Game) => `Still in for ${placeName(game)}? Confirm your spot so the group knows who's coming.`;
 const fireTime = (game: Game) => new Date(new Date(game.startsAt).getTime() - REMINDER_LEAD_MS);
 
-async function schedule(game: Game) {
+async function schedule(Notifications: typeof NotificationsModule, game: Game) {
   const fireAt = fireTime(game);
   if (fireAt.getTime() <= Date.now()) return;
   await Notifications.scheduleNotificationAsync({
@@ -31,14 +40,16 @@ async function schedule(game: Game) {
 // defence there is. Asking permission is deferred to the first join so the
 // prompt arrives with obvious context. Never throws: reminders are a nicety.
 export async function scheduleGameReminder(game: Game) {
+  if (!Notifications) return;
   try {
     if (fireTime(game).getTime() <= Date.now()) return;
     const { granted } = await Notifications.requestPermissionsAsync();
-    if (granted) await schedule(game);
+    if (granted) await schedule(Notifications, game);
   } catch {}
 }
 
 export async function cancelGameReminder(gameId: string) {
+  if (!Notifications) return;
   try {
     await Notifications.cancelScheduledNotificationAsync(reminderId(gameId));
   } catch {}
@@ -49,6 +60,7 @@ export async function cancelGameReminder(gameId: string) {
 // server, drop reminders for games the viewer is no longer in (or that
 // changed) and schedule any that are missing. Never asks for permission.
 export async function syncGameReminders(games: Game[], meId: string | undefined) {
+  if (!Notifications) return;
   try {
     const wanted = new Map(
       games.filter((g) => g.status === "open" && g.participants.some((p) => p.user.id === meId)).map((g) => [reminderId(g.id), g])
@@ -64,11 +76,12 @@ export async function syncGameReminders(games: Game[], meId: string | undefined)
     }
     const { granted } = await Notifications.getPermissionsAsync();
     if (!granted) return;
-    for (const game of wanted.values()) await schedule(game);
+    for (const game of wanted.values()) await schedule(Notifications, game);
   } catch {}
 }
 
 export async function cancelAllGameReminders() {
+  if (!Notifications) return;
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
   } catch {}
