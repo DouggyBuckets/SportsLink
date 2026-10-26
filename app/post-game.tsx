@@ -5,8 +5,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Alert, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { promptConfirmed } from "@/components/field-booking";
-import { FieldCheckCard } from "@/components/field-check";
 import { useAppTheme } from "@/components/theme";
 import { useNow } from "@/hooks/use-now";
 import { Badge, Chip, Field, FieldLabel } from "@/components/ui/bits";
@@ -16,16 +14,15 @@ import { Header, HeaderTextButton } from "@/components/ui/header";
 import { Divider } from "@/components/ui/list-section";
 import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { fonts, spacing, typeScale } from "@/constants/theme";
-import { postGame, setFieldBooking, updateGame } from "@/lib/api";
+import { postGame, updateGame } from "@/lib/api";
 import { fitsSchedule } from "@/lib/availability";
 import { formatDuration, nextOccurrence } from "@/lib/dates";
-import { checkField, useFieldFeeds } from "@/lib/fields";
 import { locationsForSport, OTHER_LOCATION_ID } from "@/lib/locations";
 import { joinedPlayers } from "@/lib/selectors";
 import { MIN_RELIABILITY_OPTIONS } from "@/lib/reliability";
 import { formatSizing, SKILLS, SOCCER, sportMeta } from "@/lib/sports";
 import { useAppStore } from "@/lib/store";
-import { FieldBooking, NewGame, SkillLevel } from "@/lib/types";
+import { NewGame, SkillLevel } from "@/lib/types";
 
 type StepperProps = { label: string; hint?: string; value: number; min: number; max: number; step?: number; display?: string; onChange: (n: number) => void };
 
@@ -70,8 +67,6 @@ export default function PostGame() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const availability = useAppStore((s) => s.availability);
-  const games = useAppStore((s) => s.games);
-  const feeds = useFieldFeeds();
   const editing = useAppStore((s) => (params.edit ? s.games.find((g) => g.id === params.edit) : undefined));
   const lockedIn = editing ? joinedPlayers(editing).length : 1;
   const now = useNow();
@@ -96,9 +91,6 @@ export default function PostGame() {
   const visibility: NewGame["visibility"] = editing?.visibility ?? "campus";
   const [notes, setNotes] = useState(editing?.notes ?? "");
   const [saving, setSaving] = useState(false);
-  // New games only; after posting, the host updates it from the game page.
-  const [booking, setBooking] = useState<FieldBooking>("none");
-  const [bookingRef, setBookingRef] = useState("");
 
   const meta = sportMeta(sport);
   const places = locationsForSport(sport);
@@ -107,8 +99,7 @@ export default function PostGame() {
   const inPast = startsAt.getTime() < now + 10 * 60_000;
   const fitsMe = fitsSchedule({ startsAt: startsAt.toISOString(), durationMin }, availability);
   const customPlace = locationId === OTHER_LOCATION_ID;
-  const field = checkField({ locationId, start: startsAt, durationMin, editingId: editing?.id }, feeds, games, new Date(now));
-  const valid = !inPast && !field.blocked && (!customPlace || locationNote.trim().length >= 3);
+  const valid = !inPast && (!customPlace || locationNote.trim().length >= 3);
 
   // The format sets how many are needed to play (the "Game on" threshold:
   // both full sides). The host only picks the max; anything above the
@@ -126,8 +117,7 @@ export default function PostGame() {
     const input: NewGame = { sport, customSport: "", format, locationId, locationNote: locationNote.trim(), startsAt: startsAt.toISOString(), durationMin, capacity, minPlayers, skill, minReliability, visibility, notes: notes.trim() };
     setSaving(true);
     try {
-      let game = editing ? await updateGame(editing.id, input) : await postGame(input);
-      if (!editing && booking !== "none" && field.reserve) game = await setFieldBooking(game.id, booking, bookingRef);
+      const game = editing ? await updateGame(editing.id, input) : await postGame(input);
       if (process.env.EXPO_OS === "ios") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (editing) router.back();
       else router.replace({ pathname: "/game/[id]", params: { id: game.id } });
@@ -180,28 +170,6 @@ export default function PostGame() {
           </Card>
         </View>
 
-        {customPlace ? null : (
-          <View style={{ gap: spacing.xs }}>
-            <FieldLabel>Field check</FieldLabel>
-            <FieldCheckCard check={field} />
-          </View>
-        )}
-
-        {!editing && field.reserve ? (
-          <View style={{ gap: spacing.xs }}>
-            <FieldLabel>Field booking</FieldLabel>
-            <SegmentedTabs
-              value={booking}
-              onChange={(v) => (v === "confirmed" ? promptConfirmed((ref) => (setBookingRef(ref), setBooking("confirmed")), bookingRef) : setBooking(v))}
-              options={[
-                { value: "none", label: "Not booked" },
-                { value: "requested", label: "Requested" },
-                { value: "confirmed", label: bookingRef && booking === "confirmed" ? `#${bookingRef}` : "Confirmed" },
-              ]}
-            />
-          </View>
-        ) : null}
-
         <View style={{ gap: spacing.xs }}>
           <FieldLabel>Players</FieldLabel>
           <Card padding={0}>
@@ -246,7 +214,6 @@ export default function PostGame() {
       </ScrollView>
 
       <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: insets.bottom + spacing.sm, borderTopWidth: 1, borderTopColor: colors.divider, backgroundColor: colors.cardSolid }}>
-        {field.blocked ? <Text style={{ textAlign: "center", marginBottom: spacing.xs, fontFamily: fonts.bodyMedium, fontSize: typeScale.label, color: colors.danger }}>{field.blocked} Pick another time.</Text> : null}
         <Button label={editing ? "Save changes" : "Post game"} variant="maize" fullWidth disabled={!valid} loading={saving} onPress={submit} />
       </View>
     </KeyboardAvoidingView>

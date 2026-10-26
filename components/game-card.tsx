@@ -75,7 +75,6 @@ export function GameCard({ game, fits }: GameCardProps) {
               {title}
             </Text>
             {status === "joined" ? <Badge label="You're in" tone="maize" /> : null}
-            {game.fieldBooking === "confirmed" ? <Badge label="Field reserved" tone="success" icon="checkmark.seal.fill" /> : null}
           </View>
 
           <View style={{ paddingLeft: 17, gap: 3 }}>

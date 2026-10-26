@@ -66,16 +66,8 @@ export type Game = {
   isOfficial: boolean;
   visibility: "campus" | "friends";
   status: GameStatus;
-  // The host's record of reserving the field through Michigan Recreation or
-  // City Parks (there's no booking API): "requested" = form submitted,
-  // "confirmed" = approved. Moving the game resets it to "none".
-  fieldBooking: FieldBooking;
-  // Rental/confirmation number, so players can check it with the field's owner.
-  bookingRef: string;
   participants: Participant[];
 };
-
-export type FieldBooking = "none" | "requested" | "confirmed";
 
 export type NewGame = Pick<
   Game,

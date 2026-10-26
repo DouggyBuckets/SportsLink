@@ -1,10 +1,10 @@
-import { dayKey, gameEnd } from "@/lib/dates";
+import { dayKey } from "@/lib/dates";
 import { buildGames, buildHistory, buildMyUpcoming, historyStats, ME_ID, mini, MOCK_USERS, mockUserById } from "@/lib/mock";
 import { cancelGameReminder, scheduleGameReminder } from "@/lib/notifications";
 import { isLateLeave, meetsMinimum, reliabilityScore } from "@/lib/reliability";
 import { Invite, useAppStore } from "@/lib/store";
 import { DEMO, supabase } from "@/lib/supabase";
-import { AvailabilityBlock, ClassYear, FieldBooking, Friend, FriendState, Game, Message, MiniProfile, NewGame, Participant, Profile, SkillLevel, SportId } from "@/lib/types";
+import { AvailabilityBlock, ClassYear, Friend, FriendState, Game, Message, MiniProfile, NewGame, Participant, Profile, SkillLevel, SportId } from "@/lib/types";
 
 // Single doorway for every read and write. Each function has a live path
 // (Supabase RPCs, which return the same camelCase JSON as the client types -
@@ -95,7 +95,6 @@ type Bootstrap = {
 
 export async function loadAll() {
   if (DEMO) {
-    settleFakeHosts();
     const s = store();
     const today = dayKey(new Date());
     if (s.seedDay === today || !s.me) return;
@@ -255,7 +254,7 @@ export async function postGame(input: NewGame): Promise<Game> {
   let game: Game;
   if (DEMO) {
     const host: Participant = { user: meMini(), status: "joined", joinedAt: new Date().toISOString(), confirmed: true, attended: null };
-    game = { ...input, id: `mine-${Date.now()}`, host: meMini(), isOfficial: false, status: "open", fieldBooking: "none", bookingRef: "", participants: [host] };
+    game = { ...input, id: `mine-${Date.now()}`, host: meMini(), isOfficial: false, status: "open", participants: [host] };
     store().patch({ me: { ...store().me!, gamesHosted: store().me!.gamesHosted + 1 } });
   } else {
     game = await rpc<Game>("create_game", { p: input });
@@ -273,10 +272,8 @@ export async function updateGame(id: string, input: NewGame): Promise<Game> {
     const g = findGame(id);
     const joined = joinedCount(g);
     if (input.capacity < joined) throw new Error(`${joined} players have already joined. Max players can't be lower than that.`);
+    game = { ...g, ...input };
     const moved = g.startsAt !== input.startsAt || g.locationId !== input.locationId;
-    // Mirrors the games_reset_field_booking trigger: a booking is for one time and place.
-    const voided = moved || input.durationMin > g.durationMin;
-    game = { ...g, ...input, ...(voided ? { fieldBooking: "none" as const, bookingRef: "" } : {}) };
     systemMessage(id, moved ? "The host changed the time or place - check the details" : "The host updated the game details");
   } else {
     game = await rpc<Game>("update_game", { p_game_id: id, p: input });
@@ -286,21 +283,6 @@ export async function updateGame(id: string, input: NewGame): Promise<Game> {
     await cancelGameReminder(id);
     scheduleGameReminder(game);
   }
-  return game;
-}
-
-// Host-only. Records that the host reserved the field through the official
-// process (see lib/fields.ts for where), so players know it's theirs.
-export async function setFieldBooking(id: string, status: FieldBooking, ref: string): Promise<Game> {
-  let game: Game;
-  if (DEMO) {
-    const g = findGame(id);
-    game = { ...g, fieldBooking: status, bookingRef: status === "none" ? "" : ref.trim().slice(0, 40) };
-    if (status === "confirmed" && g.fieldBooking !== "confirmed") systemMessage(id, "The host reserved the field");
-  } else {
-    game = await rpc<Game>("set_field_booking", { p_game_id: id, p_status: status, p_ref: ref });
-  }
-  store().upsertGame(game);
   return game;
 }
 
@@ -326,20 +308,6 @@ export async function markAttendance(id: string, attendedIds: string[]): Promise
   // The host's own stats changed too; pull them so the profile updates.
   loadAll().catch(() => {});
   return game;
-}
-
-// Demo only: fake hosts mark their finished games right away (everyone
-// showed), so a game the viewer joined doesn't sit at "Waiting on host".
-function settleFakeHosts() {
-  const now = Date.now();
-  const due = store().games.filter(
-    (g) => g.status !== "cancelled" && g.host?.id !== ME_ID && gameEnd(g).getTime() <= now && g.participants.some((p) => p.user.id === ME_ID && p.attended === null)
-  );
-  for (const g of due) {
-    const changed = new Map(g.participants.filter((p) => p.status === "joined" && p.attended === null).map((p) => [p.user.id, true]));
-    store().upsertGame({ ...g, status: "completed", participants: g.participants.map((p) => (p.status === "joined" ? { ...p, attended: p.attended ?? true } : p)) });
-    applyDemoScores(changed);
-  }
 }
 
 // Demo stand-in for _refresh_profile_stats: moves the viewer's numbers and

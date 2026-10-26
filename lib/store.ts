@@ -82,11 +82,9 @@ export const useAppStore = create<AppState>()(
       // Account, profile and free time carry over. v3: MVP1 - soccer only,
       // reliability always a number (new players start at 100). v4: no waitlist.
       // v5: profiles carry `attended`.
-      version: 7,
-      migrate: (persisted, version) => {
+      version: 6,
+      migrate: (persisted) => {
         const data = persisted as Data;
-        // v6 -> v7 only added field bookings: keep everything, fill the default.
-        if (version === 6) return { ...data, games: data.games.map((g) => ({ ...g, fieldBooking: g.fieldBooking ?? "none", bookingRef: g.bookingRef ?? "" })) };
         const me = data.me
           ? { ...data.me, reliability: data.me.reliability ?? 100, ratedGames: data.me.ratedGames ?? 0, attended: data.me.attended ?? data.me.ratedGames ?? 0, sports: data.me.sports.filter((s) => s.sport === "soccer") }
           : null;

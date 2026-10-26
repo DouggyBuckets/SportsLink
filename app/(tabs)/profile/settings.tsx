@@ -13,10 +13,9 @@ export default function Settings() {
   const { colors } = useAppTheme();
   const theme = useAppStore((s) => s.themeOverride);
   const patch = useAppStore((s) => s.patch);
-  const blocked = useAppStore((s) => s.blockedIds.length);
 
   const confirmDelete = () =>
-    Alert.alert("Delete your account?", "Your profile, free time and messages are permanently removed. Games you host pass to another player. This can't be undone.", [
+    Alert.alert("Delete your account?", "Your profile and free time are permanently removed. Games you host pass to another player. This can't be undone.", [
       { text: "Cancel", style: "cancel" },
       { text: "Delete account", style: "destructive", onPress: () => deleteAccount().catch((e) => Alert.alert("Couldn't delete account", (e as Error).message)) },
     ]);
@@ -52,8 +51,6 @@ export default function Settings() {
           ]}
         />
       </View>
-
-      <ListSection rows={[{ key: "blocked", icon: "hand.raised.fill", iconColor: "#52627A", label: "Blocked players", value: String(blocked) }]} />
 
       {DEMO ? (
         <ListSection
