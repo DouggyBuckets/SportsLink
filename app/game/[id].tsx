@@ -1,5 +1,4 @@
 import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Linking, Pressable, ScrollView, Text, View } from "react-native";
@@ -20,6 +19,7 @@ import { fillState, hasEnded, hasStarted, isHost, joinedPlayers, myStatus, needs
 import { gameTitle, skillLabel } from "@/lib/sports";
 import { useAppStore } from "@/lib/store";
 import { Game, Participant } from "@/lib/types";
+import { Icon } from "@/components/ui/icon";
 
 const CONFIRM_WINDOW_MS = 24 * 60 * 60_000;
 
@@ -125,7 +125,7 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
           <Badge label="Showed up" tone="success" icon="checkmark" />
         ) : (
           <>
-            {p.confirmed && open ? <Image source="sf:checkmark.circle.fill" style={{ width: 16, height: 16, tintColor: colors.success }} /> : null}
+            {p.confirmed && open ? <Icon name="checkmark.circle.fill" size={16} color={colors.success} /> : null}
             <ReliabilityBadge user={p.user} />
           </>
         )}
@@ -135,12 +135,12 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
 
   const fact = (icon: string, label: string, value: string, onPress?: () => void) => (
     <Pressable disabled={!onPress} onPress={onPress} style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 11, paddingHorizontal: spacing.md }}>
-      <Image source={`sf:${icon}`} style={{ width: 18, height: 18, tintColor: colors.tint }} />
+      <Icon name={icon} size={18} color={colors.tint} />
       <View style={{ flex: 1 }}>
         <Text style={{ fontFamily: fonts.body, fontSize: typeScale.caption, color: colors.textTertiary }}>{label}</Text>
         <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.body, color: colors.text }}>{value}</Text>
       </View>
-      {onPress ? <Image source="sf:arrow.up.right" style={{ width: 12, height: 12, tintColor: colors.textTertiary }} /> : null}
+      {onPress ? <Icon name="arrow.up.right" size={12} color={colors.textTertiary} /> : null}
     </Pressable>
   );
 

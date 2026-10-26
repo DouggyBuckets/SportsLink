@@ -1,9 +1,9 @@
 import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
 import { ActivityIndicator, Pressable, Text } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { fonts, radius, spacing } from "@/constants/theme";
 import { useAppTheme } from "@/components/theme";
+import { Icon } from "@/components/ui/icon";
 
 // primary: blue with maize text (swaps in dark) - row actions like Join.
 // maize: the single main action on a screen (Join this game, Post, Save).
@@ -78,7 +78,7 @@ export function Button({ label, onPress, variant = "primary", size = "lg", icon,
         <ActivityIndicator color={fg} />
       ) : (
         <>
-          {icon ? <Image source={`sf:${icon}`} style={{ width: fontSize, height: fontSize, tintColor: fg }} /> : null}
+          {icon ? <Icon name={icon} size={fontSize} color={fg} /> : null}
           <Text style={{ color: fg, fontFamily: fonts.display, fontSize }}>{label}</Text>
         </>
       )}

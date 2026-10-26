@@ -1,5 +1,4 @@
 import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
 import { Fragment } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useAppTheme } from "@/components/theme";
@@ -8,6 +7,7 @@ import { Divider } from "@/components/ui/list-section";
 import { fonts, spacing, typeScale } from "@/constants/theme";
 import { SKILLS, SOCCER } from "@/lib/sports";
 import { SkillLevel, SportId } from "@/lib/types";
+import { Icon } from "@/components/ui/icon";
 
 export type SportPick = { sport: SportId; skill: SkillLevel };
 
@@ -38,7 +38,7 @@ export function SoccerLevelPicker({ value, onChange }: { value: SportPick[]; onC
                 <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: typeScale.subtitle, color: colors.text }}>{l.label}</Text>
                 <Text style={{ fontFamily: fonts.body, fontSize: typeScale.label, color: colors.textSecondary }}>{l.blurb}</Text>
               </View>
-              <Image source={`sf:${on ? "checkmark.circle.fill" : "circle"}`} style={{ width: 24, height: 24, tintColor: on ? colors.tint : colors.textTertiary }} />
+              <Icon name={on ? "checkmark.circle.fill" : "circle"} size={24} color={on ? colors.tint : colors.textTertiary} />
             </Pressable>
           </Fragment>
         );

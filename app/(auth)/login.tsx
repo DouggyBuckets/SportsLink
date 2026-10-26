@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
@@ -9,6 +8,7 @@ import { useAppTheme } from "@/components/theme";
 import { Button } from "@/components/ui/button";
 import { fonts, radius, spacing, typeScale } from "@/constants/theme";
 import { checkUserExists, isUmichEmail, MIN_PASSWORD_LENGTH, signInOrSignUp, UMICH_DOMAIN } from "@/lib/api";
+import { Icon } from "@/components/ui/icon";
 
 // One flow for sign-in and sign-up. The student types only their uniqname
 // (the domain is fixed, so a non-umich address can't even be entered), then
@@ -83,7 +83,7 @@ export default function Login() {
           onPress={back}
           style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: colors.fill, alignItems: "center", justifyContent: "center" }}
         >
-          <Image source="sf:chevron.left" style={{ width: 14, height: 14, tintColor: colors.text }} />
+          <Icon name="chevron.left" size={14} color={colors.text} />
         </Pressable>
 
         {step === "email" ? (
@@ -150,7 +150,7 @@ export default function Login() {
                 onPress={() => setShowPassword((v) => !v)}
                 style={({ pressed }) => ({ paddingLeft: spacing.sm, opacity: pressed ? 0.5 : 1 })}
               >
-                <Image source={showPassword ? "sf:eye.slash" : "sf:eye"} style={{ width: 22, height: 22, tintColor: colors.textSecondary }} />
+                <Icon name={showPassword ? "eye.slash" : "eye"} size={22} color={colors.textSecondary} />
               </Pressable>
             </View>
 

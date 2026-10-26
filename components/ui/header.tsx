@@ -1,8 +1,8 @@
-import { Image } from "expo-image";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/theme";
 import { fonts, radius, spacing, typeScale } from "@/constants/theme";
+import { Icon } from "@/components/ui/icon";
 
 type HeaderProps = {
   title: string;
@@ -99,7 +99,7 @@ export function HeaderRow({ icon, label, value, action, onPress }: { icon: strin
       })}
     >
       <View style={{ width: 36, height: 36, borderRadius: radius.sm, borderCurve: "continuous", backgroundColor: colors.maize, alignItems: "center", justifyContent: "center" }}>
-        <Image source={`sf:${icon}`} style={{ width: 19, height: 19, tintColor: colors.onMaize }} />
+        <Icon name={icon} size={19} color={colors.onMaize} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 11, letterSpacing: 0.5, color: colors.onHeaderMuted }}>{label.toUpperCase()}</Text>

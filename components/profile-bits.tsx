@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { useEffect } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from "react-native-reanimated";
@@ -9,6 +8,7 @@ import { fonts, radius, spacing, typeScale } from "@/constants/theme";
 import { LATE_LEAVE_HOURS, reliabilityTier, reliabilityTone } from "@/lib/reliability";
 import { skillLabel } from "@/lib/sports";
 import { Profile } from "@/lib/types";
+import { Icon } from "@/components/ui/icon";
 
 // Shared by the viewer's own Profile tab and the sheet for other players.
 
@@ -65,7 +65,7 @@ function RecentGames({ history }: { history: (boolean | null)[] }) {
           const icon = attended === null ? "ellipsis" : attended ? "checkmark" : "xmark";
           return (
             <View key={i} style={{ flex: 1, maxWidth: 30, aspectRatio: 1, borderRadius: radius.pill, backgroundColor: bg, alignItems: "center", justifyContent: "center" }}>
-              <Image source={`sf:${icon}`} style={{ width: 11, height: 11, tintColor: fg }} />
+              <Icon name={icon} size={11} color={fg} />
             </View>
           );
         })}
@@ -100,7 +100,7 @@ export function ReliabilityCard({ user, history }: { user: Profile; history?: (b
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Text style={{ fontFamily: fonts.heading, fontSize: typeScale.subtitle, color: colors.text }}>Reliability score</Text>
           <Pressable accessibilityRole="button" accessibilityLabel="How the reliability score works" hitSlop={10} onPress={explain} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-            <Image source="sf:info.circle" style={{ width: 20, height: 20, tintColor: colors.textTertiary }} />
+            <Icon name="info.circle" size={20} color={colors.textTertiary} />
           </Pressable>
         </View>
 

@@ -1,6 +1,5 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Alert, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from "react-native";
@@ -23,6 +22,7 @@ import { MIN_RELIABILITY_OPTIONS } from "@/lib/reliability";
 import { formatSizing, SKILLS, SOCCER, sportMeta } from "@/lib/sports";
 import { useAppStore } from "@/lib/store";
 import { NewGame, SkillLevel } from "@/lib/types";
+import { Icon } from "@/components/ui/icon";
 
 type StepperProps = { label: string; hint?: string; value: number; min: number; max: number; step?: number; display?: string; onChange: (n: number) => void };
 
@@ -42,7 +42,7 @@ function Stepper({ label, hint, value, min, max, step = 1, display, onChange }: 
         }}
         style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.fill, alignItems: "center", justifyContent: "center", opacity: disabled ? 0.35 : 1 }}
       >
-        <Image source={`sf:${icon}`} style={{ width: 14, height: 14, tintColor: colors.text }} />
+        <Icon name={icon} size={14} color={colors.text} />
       </Pressable>
     );
   };
