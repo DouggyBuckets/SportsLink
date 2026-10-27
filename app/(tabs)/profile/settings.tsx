@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Modal, Text, View } from "react-native";
+import { Modal, Text, View } from "react-native";
 import { useAppTheme } from "@/components/theme";
 import { Field, FieldLabel } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { ListSection } from "@/components/ui/list-section";
 import { Screen } from "@/components/ui/screen";
 import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { fonts, spacing, typeScale } from "@/constants/theme";
+import { Alert } from "@/lib/alert";
 import { changePassword, deleteAccount, MIN_PASSWORD_LENGTH, resetDemoData, signOut } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import { DEMO } from "@/lib/supabase";

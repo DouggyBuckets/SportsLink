@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Linking, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/theme";
 import { useNow } from "@/hooks/use-now";
@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Header, HeaderTextButton } from "@/components/ui/header";
 import { Divider } from "@/components/ui/list-section";
 import { fonts, spacing, typeScale } from "@/constants/theme";
+import { Alert } from "@/lib/alert";
 import { cancelGame, confirmSpot, joinGame, leaveGame } from "@/lib/api";
 import { formatDuration, formatTime, formatWhen, gameEnd } from "@/lib/dates";
 import { mapsUrl, placeName } from "@/lib/locations";

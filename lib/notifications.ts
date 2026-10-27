@@ -5,12 +5,12 @@ import { placeName } from "@/lib/locations";
 import { sportMeta } from "@/lib/sports";
 import { Game } from "@/lib/types";
 
-// In Expo Go on Android, merely importing expo-notifications (SDK 57) throws
-// "Cannot find native module 'ExpoTopicSubscriptionModule'". So it's loaded
-// only where it works; in Android Expo Go, reminders are skipped. Use a
-// development build to test them on Android.
+// Loaded only where it works. In Expo Go on Android, merely importing
+// expo-notifications (SDK 57) throws "Cannot find native module
+// 'ExpoTopicSubscriptionModule'" (use a development build to test reminders
+// on Android). Browsers can't schedule local notifications at all.
 const Notifications: typeof NotificationsModule | null =
-  Platform.OS === "android" && isRunningInExpoGo() ? null : require("expo-notifications");
+  Platform.OS === "web" || (Platform.OS === "android" && isRunningInExpoGo()) ? null : require("expo-notifications");
 
 Notifications?.setNotificationHandler({
   handleNotification: async () => ({ shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }),

@@ -2,7 +2,7 @@ import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/d
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
-import { Alert, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/theme";
 import { useNow } from "@/hooks/use-now";
@@ -12,7 +12,9 @@ import { Card } from "@/components/ui/card";
 import { Header, HeaderTextButton } from "@/components/ui/header";
 import { Divider } from "@/components/ui/list-section";
 import { SegmentedTabs } from "@/components/ui/segmented-tabs";
+import { WebDateTimeInput } from "@/components/web-date-time-input";
 import { fonts, spacing, typeScale } from "@/constants/theme";
+import { Alert } from "@/lib/alert";
 import { postGame, updateGame } from "@/lib/api";
 import { fitsSchedule } from "@/lib/availability";
 import { formatDate, formatDuration, formatTime, nextOccurrence } from "@/lib/dates";
@@ -172,6 +174,8 @@ export default function PostGame() {
               <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.body, color: colors.text }}>Date</Text>
               {process.env.EXPO_OS === "ios" ? (
                 <DateTimePicker value={when} mode="date" display="compact" minimumDate={today} themeVariant={scheme} accentColor={colors.tint} onValueChange={(_, d) => setWhen(d)} />
+              ) : process.env.EXPO_OS === "web" ? (
+                <WebDateTimeInput mode="date" value={when} min={today} onChange={setWhen} />
               ) : (
                 <AndroidPickerButton label={formatDate(when)} onPress={() => DateTimePickerAndroid.open({ value: when, mode: "date", minimumDate: today, onValueChange: (_, d) => setWhen(d) })} />
               )}
@@ -181,6 +185,8 @@ export default function PostGame() {
               <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.body, color: colors.text }}>Start time</Text>
               {process.env.EXPO_OS === "ios" ? (
                 <DateTimePicker value={when} mode="time" display="compact" minuteInterval={5} themeVariant={scheme} accentColor={colors.tint} onValueChange={(_, d) => setWhen(d)} />
+              ) : process.env.EXPO_OS === "web" ? (
+                <WebDateTimeInput mode="time" value={when} onChange={setWhen} />
               ) : (
                 <AndroidPickerButton label={formatTime(when)} onPress={() => DateTimePickerAndroid.open({ value: when, mode: "time", onValueChange: (_, d) => setWhen(d) })} />
               )}

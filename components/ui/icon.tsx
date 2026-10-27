@@ -28,6 +28,7 @@ const MATERIAL: Record<string, AndroidSymbol> = {
   "info.circle": "info",
   "key.fill": "key",
   "mappin.and.ellipse": "location_on",
+  minus: "remove",
   pencil: "edit",
   person: "person",
   "person.2": "group",

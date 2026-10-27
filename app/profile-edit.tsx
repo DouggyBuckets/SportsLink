@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, ScrollView, View } from "react-native";
+import { KeyboardAvoidingView, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { SoccerLevelPicker, SportPick } from "@/components/soccer-level-picker";
 import { useAppTheme } from "@/components/theme";
@@ -8,6 +8,7 @@ import { Chip, Field, FieldLabel } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
 import { Header, HeaderTextButton } from "@/components/ui/header";
 import { spacing } from "@/constants/theme";
+import { Alert } from "@/lib/alert";
 import { saveProfile } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import { ClassYear } from "@/lib/types";

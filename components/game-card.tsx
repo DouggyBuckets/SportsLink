@@ -1,12 +1,13 @@
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useAppTheme } from "@/components/theme";
 import { Badge, ReliabilityBadge } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { fonts, spacing, typeScale } from "@/constants/theme";
+import { Alert } from "@/lib/alert";
 import { joinGame } from "@/lib/api";
 import { formatWhen } from "@/lib/dates";
 import { placeName } from "@/lib/locations";
@@ -62,7 +63,9 @@ export function GameCard({ game, fits }: GameCardProps) {
 
   return (
     <Pressable
-      accessibilityRole="button"
+      // On web, role "button" renders a <button>, and the Join button inside
+      // would make it a button within a button, which HTML doesn't allow.
+      accessibilityRole={process.env.EXPO_OS === "web" ? undefined : "button"}
       accessibilityLabel={`${title}, ${formatWhen(game.startsAt)} at ${placeName(game)}`}
       onPress={() => router.push({ pathname: "/game/[id]", params: { id: game.id } })}
       style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}

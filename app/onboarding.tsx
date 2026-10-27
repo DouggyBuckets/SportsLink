@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from "react-native";
+import { KeyboardAvoidingView, Pressable, ScrollView, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AVAILABILITY_PRESETS, AvailabilityGrid } from "@/components/availability-grid";
@@ -9,6 +9,7 @@ import { useAppTheme } from "@/components/theme";
 import { Chip, Field, FieldLabel } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
 import { fonts, spacing, typeScale } from "@/constants/theme";
+import { Alert } from "@/lib/alert";
 import { saveAvailability, saveProfile, signOut } from "@/lib/api";
 import { cellsToBlocks, weeklyFreeHours } from "@/lib/availability";
 import { useAppStore } from "@/lib/store";

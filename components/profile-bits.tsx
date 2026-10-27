@@ -1,10 +1,11 @@
 import { useEffect } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import Animated, { Easing, useAnimatedProps, useSharedValue, withTiming } from "react-native-reanimated";
 import Svg, { Circle } from "react-native-svg";
 import { useAppTheme } from "@/components/theme";
 import { Card } from "@/components/ui/card";
 import { fonts, radius, spacing, typeScale } from "@/constants/theme";
+import { Alert } from "@/lib/alert";
 import { LATE_LEAVE_HOURS, reliabilityTier, reliabilityTone } from "@/lib/reliability";
 import { skillLabel } from "@/lib/sports";
 import { Profile } from "@/lib/types";
