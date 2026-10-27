@@ -1,10 +1,10 @@
 import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
 import { Fragment } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useAppTheme } from "@/components/theme";
 import { fonts, spacing, typeScale } from "@/constants/theme";
 import { Card } from "@/components/ui/card";
+import { Icon } from "@/components/ui/icon";
 
 export type ListRowData = {
   key: string;
@@ -52,7 +52,7 @@ export function IconTile({ icon, color, size = 30 }: { icon: string; color: stri
         justifyContent: "center",
       }}
     >
-      <Image source={`sf:${icon}`} style={{ width: size * 0.52, height: size * 0.52, tintColor: "#fff" }} />
+      <Icon name={icon} size={size * 0.52} color="#fff" />
     </View>
   );
 }
@@ -85,7 +85,7 @@ export function ListRow({ row }: { row: ListRowData }) {
         </Text>
       ) : null}
       {row.trailing}
-      {row.onPress ? <Image source="sf:chevron.right" style={{ width: 12, height: 12, tintColor: colors.textTertiary }} /> : null}
+      {row.onPress ? <Icon name="chevron.right" size={12} color={colors.textTertiary} /> : null}
     </View>
   );
 

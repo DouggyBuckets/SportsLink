@@ -1,5 +1,5 @@
 import { dayKey } from "@/lib/dates";
-import { buildGames, buildHistory, ME_ID, mini, MOCK_USERS, mockUserById } from "@/lib/mock";
+import { buildGames, buildHistory, buildMyUpcoming, historyStats, ME_ID, mini, MOCK_USERS, mockUserById } from "@/lib/mock";
 import { cancelAllGameReminders, cancelGameReminder, scheduleGameReminder, syncGameReminders } from "@/lib/notifications";
 import { isLateLeave, meetsMinimum, reliabilityScore } from "@/lib/reliability";
 import { Invite, useAppStore } from "@/lib/store";
@@ -104,22 +104,21 @@ export async function loadAll() {
     const s = store();
     const today = dayKey(new Date());
     if (s.seedDay === today || !s.me) return;
-    // New day: regenerate the rolling week. Games the viewer posted or joined
-    // that are still upcoming are carried over so they don't vanish.
+    // New day: regenerate the rolling week of other people's games.
     const games = buildGames();
-    const mine = s.games.filter((g) => g.status !== "completed" && new Date(g.startsAt) > new Date() && g.participants.some((p) => p.user.id === ME_ID));
+    // Everything the viewer is in - upcoming, finished and already-marked
+    // games - is carried over so marks and history survive the rollover.
+    const mine = s.games.filter((g) => g.participants.some((p) => p.user.id === ME_ID));
     const firstRun = s.seedDay === null;
-    const seeded = [...games.filter((g) => !mine.some((m) => m.id === g.id)), ...mine, ...buildHistory(mini(s.me))];
+    // First run (or "Reset demo data"): the viewer gets a match history and
+    // two upcoming games, with profile numbers to match.
+    const me = firstRun ? { ...s.me, ...historyStats() } : s.me;
+    const upcoming = firstRun ? buildMyUpcoming(mini(me)) : [];
+    const seeded = [...games.filter((g) => !mine.some((m) => m.id === g.id)), ...mine, ...upcoming, ...(firstRun ? buildHistory(mini(me)) : [])];
     s.patch({
       games: seeded.sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
       seedDay: today,
-      ...(firstRun
-        ? {
-            // Matches buildHistory: three games played, one of them hosted
-            // (and still waiting on attendance), two marked present.
-            me: { ...s.me, gamesPlayed: 3, gamesHosted: 1, reliability: 100, ratedGames: 2, attended: 2 },
-          }
-        : {}),
+      me,
     });
     return;
   }
@@ -127,6 +126,15 @@ export async function loadAll() {
   const { onboarded, ...me } = data.me;
   store().patch({ ...data, me, hasOnboarded: onboarded });
   syncGameReminders(data.games, me.id);
+}
+
+// Demo only: rebuild the fake world relative to now (fresh history, a game
+// kicking off in about an hour, scores back to their starting values).
+// Keeps the viewer's name, level and free time.
+export async function resetDemoData() {
+  if (!DEMO) return;
+  store().patch({ games: [], messages: {}, seedDay: null });
+  await loadAll();
 }
 
 export async function refreshGames() {
@@ -293,16 +301,54 @@ export async function markAttendance(id: string, attendedIds: string[]): Promise
   let game: Game;
   if (DEMO) {
     const g = findGame(id);
+    // Only players marked for the first time move their score.
+    const changed = new Map(g.participants.filter((p) => p.status === "joined" && p.attended === null).map((p) => [p.user.id, attendedIds.includes(p.user.id)]));
     game = {
       ...g,
       status: "completed",
       participants: g.participants.map((p) => (p.status === "joined" ? { ...p, attended: attendedIds.includes(p.user.id) } : p)),
     };
-  } else {
-    game = await rpc<Game>("mark_attendance", { p_game_id: id, p_attended: attendedIds });
+    store().upsertGame(game);
+    applyDemoScores(changed);
+    return findGame(id);
   }
+  game = await rpc<Game>("mark_attendance", { p_game_id: id, p_attended: attendedIds });
   store().upsertGame(game);
+  // The host's own stats changed too; pull them so the profile updates.
+  loadAll().catch(() => {});
   return game;
+}
+
+// Demo stand-in for _refresh_profile_stats: moves the viewer's numbers and
+// every copy of the other players' scores, so the profile and rosters update
+// as soon as attendance is saved.
+function applyDemoScores(changed: Map<string, boolean>) {
+  if (changed.size === 0) return;
+  const s = store();
+  const me = s.me;
+  const myShowed = changed.get(ME_ID);
+  const nextMe =
+    me && myShowed !== undefined
+      ? (() => {
+          const attended = me.attended + (myShowed ? 1 : 0);
+          const ratedGames = me.ratedGames + 1;
+          return { ...me, attended, ratedGames, reliability: reliabilityScore(attended, ratedGames - attended) };
+        })()
+      : me;
+  const bump = (u: MiniProfile): MiniProfile => {
+    if (u.id === ME_ID && nextMe) return { ...u, reliability: nextMe.reliability, ratedGames: nextMe.ratedGames };
+    const showed = changed.get(u.id);
+    if (showed === undefined) return u;
+    // Mock players only carry a score and a count; back out their attended
+    // count from those.
+    const attended = Math.max(0, Math.round((u.reliability * (u.ratedGames + 2)) / 100 - 2)) + (showed ? 1 : 0);
+    const ratedGames = u.ratedGames + 1;
+    return { ...u, ratedGames, reliability: reliabilityScore(attended, ratedGames - attended) };
+  };
+  s.patch({
+    ...(nextMe ? { me: nextMe } : {}),
+    games: s.games.map((g) => ({ ...g, host: g.host && bump(g.host), participants: g.participants.map((p) => ({ ...p, user: bump(p.user) })) })),
+  });
 }
 
 export async function inviteFriends(gameId: string, friendIds: string[]) {

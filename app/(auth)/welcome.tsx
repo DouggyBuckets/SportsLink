@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Text, View } from "react-native";
@@ -7,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/ui/button";
 import { BLUE, fonts, MAIZE, spacing } from "@/constants/theme";
 import { DEMO } from "@/lib/supabase";
+import { Icon } from "@/components/ui/icon";
 
 const POINTS = [
   { icon: "calendar.badge.checkmark", title: "Games that fit your schedule", body: "Tell us when you're free and we'll show the pickup games you can actually make." },
@@ -32,7 +32,7 @@ export default function Welcome() {
         <View style={{ gap: spacing.md }}>
           {POINTS.map((p, i) => (
             <Animated.View key={p.title} entering={FadeInDown.delay(120 + i * 80).duration(400)} style={{ flexDirection: "row", gap: spacing.sm, alignItems: "flex-start" }}>
-              <Image source={`sf:${p.icon}`} style={{ width: 22, height: 22, tintColor: MAIZE, marginTop: 1 }} />
+              <Icon name={p.icon} size={22} color={MAIZE} style={{ marginTop: 1 }} />
               <View style={{ flex: 1, gap: 1 }}>
                 <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 16, color: "#fff" }}>{p.title}</Text>
                 <Text style={{ fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: "rgba(255,255,255,0.7)" }}>{p.body}</Text>

@@ -1,10 +1,10 @@
 import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
 import { Pressable, StyleProp, Text, TextInput, TextInputProps, View, ViewStyle } from "react-native";
 import { useAppTheme } from "@/components/theme";
 import { fonts, radius, spacing, typeScale } from "@/constants/theme";
 import { reliabilityLabel, reliabilityTone } from "@/lib/reliability";
 import { MiniProfile } from "@/lib/types";
+import { Icon } from "@/components/ui/icon";
 
 // Small shared pieces that don't earn their own file.
 
@@ -34,7 +34,7 @@ export function Chip({ label, selected, onPress, icon, iconColor }: ChipProps) {
         opacity: pressed ? 0.75 : 1,
       })}
     >
-      {icon ? <Image source={`sf:${icon}`} style={{ width: 14, height: 14, tintColor: selected ? fg : (iconColor ?? fg) }} /> : null}
+      {icon ? <Icon name={icon} size={14} color={selected ? fg : (iconColor ?? fg)} /> : null}
       <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 14, color: fg }}>{label}</Text>
     </Pressable>
   );
@@ -55,7 +55,7 @@ export function Badge({ label, tone = "neutral", icon }: { label: string; tone?:
   const { bg, fg } = tones[tone];
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: bg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill }}>
-      {icon ? <Image source={`sf:${icon}`} style={{ width: 11, height: 11, tintColor: fg }} /> : null}
+      {icon ? <Icon name={icon} size={11} color={fg} /> : null}
       <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 12, color: fg }}>{label}</Text>
     </View>
   );
@@ -160,7 +160,7 @@ export function EmptyState({ icon, title, body, action, style }: { icon: string;
   return (
     <View style={[{ alignItems: "center", gap: spacing.xs, paddingVertical: spacing.xl, paddingHorizontal: spacing.lg }, style]}>
       <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.tintSoft, alignItems: "center", justifyContent: "center", marginBottom: spacing.xxs }}>
-        <Image source={`sf:${icon}`} style={{ width: 26, height: 26, tintColor: colors.tint }} />
+        <Icon name={icon} size={26} color={colors.tint} />
       </View>
       <Text style={{ fontFamily: fonts.heading, fontSize: typeScale.subtitle, color: colors.text, textAlign: "center" }}>{title}</Text>
       {body ? <Text style={{ fontFamily: fonts.body, fontSize: typeScale.body, color: colors.textSecondary, textAlign: "center", lineHeight: 21 }}>{body}</Text> : null}
@@ -185,7 +185,7 @@ export function SheetHeader({ title, subtitle, onClose }: { title: string; subti
         onPress={onClose}
         style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.fill, alignItems: "center", justifyContent: "center" }}
       >
-        <Image source="sf:xmark" style={{ width: 12, height: 12, tintColor: colors.textSecondary }} />
+        <Icon name="xmark" size={12} color={colors.textSecondary} />
       </Pressable>
     </View>
   );

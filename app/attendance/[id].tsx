@@ -1,5 +1,4 @@
 import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
@@ -16,6 +15,7 @@ import { formatTime, gameEnd } from "@/lib/dates";
 import { joinedPlayers } from "@/lib/selectors";
 import { gameTitle } from "@/lib/sports";
 import { useAppStore } from "@/lib/store";
+import { Icon } from "@/components/ui/icon";
 
 // Host-only, after kickoff. Everyone starts ticked (most people do show up);
 // the host taps the no-shows. Anyone left unticked lowers their reliability score.
@@ -86,7 +86,7 @@ export default function Attendance() {
                     <Avatar user={p.user} size={30} />
                     <Text style={{ flex: 1, fontFamily: fonts.bodyMedium, fontSize: typeScale.body, color: colors.text }}>{p.user.name}</Text>
                     {here ? null : <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: typeScale.label, color: colors.danger }}>No-show</Text>}
-                    <Image source={`sf:${here ? "checkmark.circle.fill" : "circle"}`} style={{ width: 26, height: 26, tintColor: here ? colors.success : colors.textTertiary }} />
+                    <Icon name={here ? "checkmark.circle.fill" : "circle"} size={26} color={here ? colors.success : colors.textTertiary} />
                   </Pressable>
                 </View>
               );

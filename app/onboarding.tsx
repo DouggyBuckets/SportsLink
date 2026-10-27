@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { StatusBar } from "expo-status-bar";
 import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from "react-native";
@@ -14,6 +13,7 @@ import { saveAvailability, saveProfile, signOut } from "@/lib/api";
 import { cellsToBlocks, weeklyFreeHours } from "@/lib/availability";
 import { useAppStore } from "@/lib/store";
 import { ClassYear } from "@/lib/types";
+import { Icon } from "@/components/ui/icon";
 
 const YEARS: ClassYear[] = ["Freshman", "Sophomore", "Junior", "Senior", "Grad"];
 
@@ -56,7 +56,7 @@ export default function Onboarding() {
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, height: 38 }}>
           {step > 0 ? (
             <Pressable accessibilityRole="button" accessibilityLabel="Back" hitSlop={10} onPress={() => setStep(step - 1)}>
-              <Image source="sf:chevron.left" style={{ width: 16, height: 16, tintColor: colors.onHeader }} />
+              <Icon name="chevron.left" size={16} color={colors.onHeader} />
             </Pressable>
           ) : null}
           <View style={{ flex: 1, flexDirection: "row", gap: 6 }}>
