@@ -11,7 +11,7 @@ import { Alert } from "@/lib/alert";
 import { joinGame } from "@/lib/api";
 import { formatWhen } from "@/lib/dates";
 import { placeName } from "@/lib/locations";
-import { meetsMinimum, minReliabilityLabel, qualifyIn } from "@/lib/reliability";
+import { meetsMinimum, minReliabilityLabel } from "@/lib/reliability";
 import { fillState, joinedPlayers, myStatus } from "@/lib/selectors";
 import { gameTitle } from "@/lib/sports";
 import { useAppStore } from "@/lib/store";
@@ -42,7 +42,6 @@ export function GameCard({ game, fits }: GameCardProps) {
   const fill = fillState(game);
   const status = myStatus(game, me?.id);
   const allowed = !me || meetsMinimum(me, game.minReliability);
-  const qualifies = me && !allowed ? qualifyIn(me, game.minReliability) : null;
 
   const onJoin = async () => {
     setJoining(true);
@@ -102,9 +101,7 @@ export function GameCard({ game, fits }: GameCardProps) {
               {status !== null || fill.kind === "full" ? null : allowed ? (
                 <Button label="Join" size="sm" loading={joining} onPress={onJoin} />
               ) : (
-                <Text style={{ maxWidth: 110, textAlign: "right", fontFamily: fonts.bodySemiBold, fontSize: typeScale.caption, color: qualifies ? colors.warning : colors.danger }}>
-                  {qualifies ? `You’ll qualify in ${qualifies}` : `Needs ${game.minReliability}%`}
-                </Text>
+                <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: typeScale.caption, color: colors.danger }}>Needs {game.minReliability}%</Text>
               )}
             </View>
           </View>

@@ -54,30 +54,46 @@ function Stat({ value, label, color }: { value: number; label: string; color?: s
   );
 }
 
-export type RecentGame = { at: string; mark: AttendanceMark | null };
+export type RecentGame = { at: string; mark: AttendanceMark };
 
-// One square per recent game, oldest to newest. Misses fade as they age,
-// the way they count less toward the score.
+function Key({ color, label, faded }: { color: string; label: string; faded?: boolean }) {
+  const { colors } = useAppTheme();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+      <View style={{ width: 9, height: 9, borderRadius: 2, backgroundColor: color, opacity: faded ? 0.35 : 1 }} />
+      <Text style={{ fontFamily: fonts.body, fontSize: typeScale.caption, color: colors.textTertiary }}>{label}</Text>
+    </View>
+  );
+}
+
+// One square per recent counted game, oldest to newest, so it lines up with
+// "showed up to X of Y". Misses fade as they age, the way they count less
+// toward the score.
 function RecentGames({ history }: { history: RecentGame[] }) {
   const { colors } = useAppTheme();
-  const anyMiss = history.some((g) => g.mark && g.mark !== "present");
+  const anyMiss = history.some((g) => g.mark !== "present");
+  const anyPartial = history.some((g) => g.mark === "late" || g.mark === "left_early");
   return (
     <View style={{ gap: spacing.xs }}>
       <Text style={{ fontFamily: fonts.bodyMedium, fontSize: 11, letterSpacing: 0.5, color: colors.textTertiary }}>LAST {history.length} GAMES</Text>
       <View style={{ flexDirection: "row", gap: 5 }}>
         {history.map((g, i) => {
-          const tone = g.mark === null ? null : g.mark === "present" ? "success" : g.mark === "no_show" ? "danger" : "warning";
-          const bg = tone ? colors[tone] : colors.fill;
-          const icon = g.mark === null ? "ellipsis" : g.mark === "present" ? "checkmark" : g.mark === "no_show" ? "xmark" : "minus";
-          const weight = g.mark && g.mark !== "present" ? Math.max(0.3, missWeight(g.at)) : 1;
+          const tone = g.mark === "present" ? "success" : g.mark === "no_show" ? "danger" : "warning";
+          const icon = g.mark === "present" ? "checkmark" : g.mark === "no_show" ? "xmark" : "minus";
+          const weight = g.mark !== "present" ? Math.max(0.3, missWeight(g.at)) : 1;
           return (
-            <View key={i} style={{ flex: 1, maxWidth: 30, aspectRatio: 1, borderRadius: 6, backgroundColor: bg, opacity: weight, alignItems: "center", justifyContent: "center" }}>
-              <Icon name={icon} size={11} color={tone ? "#FFFFFF" : colors.textTertiary} />
+            <View key={i} style={{ flex: 1, maxWidth: 30, aspectRatio: 1, borderRadius: 6, backgroundColor: colors[tone], opacity: weight, alignItems: "center", justifyContent: "center" }}>
+              <Icon name={icon} size={11} color="#FFFFFF" />
             </View>
           );
         })}
       </View>
-      {anyMiss ? <Text style={{ fontFamily: fonts.body, fontSize: typeScale.caption, color: colors.textTertiary }}>Faded = older miss, counting less each week</Text> : null}
+      <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: spacing.sm, rowGap: 2 }}>
+        <Key color={colors.success} label="Showed up" />
+        {anyPartial ? <Key color={colors.warning} label="Late / left early" /> : null}
+        {anyMiss ? <Key color={colors.danger} label="No-show" /> : null}
+        {anyMiss ? <Key color={colors.danger} label="Faded = older, counts less" faded /> : null}
+      </View>
     </View>
   );
 }
@@ -125,8 +141,7 @@ function Recovery({ user, color }: { user: Profile; color: string }) {
   );
 }
 
-// `history` (own profile only): recent games, newest first. A null mark
-// means attendance isn't settled yet.
+// `history` (own profile only): counted games, newest first.
 export function ReliabilityCard({ user, history }: { user: Profile; history?: RecentGame[] }) {
   const { colors } = useAppTheme();
   const change = user.scoreEvents && !isNewPlayer(user) ? weeklyChange(user.scoreEvents) : 0;

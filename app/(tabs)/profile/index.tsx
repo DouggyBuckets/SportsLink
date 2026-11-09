@@ -49,7 +49,14 @@ export default function ProfileTab() {
         </View>
       </Card>
 
-      <ReliabilityCard user={me} history={past.map((g) => ({ at: g.startsAt, mark: g.participants.find((p) => p.user.id === me.id)?.mark ?? null }))} />
+      <ReliabilityCard
+        user={me}
+        history={past.flatMap((g) => {
+          // Only games that count; ones still waiting on the host or a vote don't.
+          const mark = g.participants.find((p) => p.user.id === me.id)?.mark;
+          return mark ? [{ at: g.startsAt, mark }] : [];
+        })}
+      />
       {me.ratedGames > me.attended || me.reliability < 100 ? <RecoveryExplainer /> : null}
 
       <View style={{ marginTop: spacing.sm }}>

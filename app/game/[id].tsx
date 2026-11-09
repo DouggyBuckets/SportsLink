@@ -16,7 +16,7 @@ import { Alert } from "@/lib/alert";
 import { cancelGame, confirmSpot, joinGame, leaveGame } from "@/lib/api";
 import { formatDuration, formatTime, formatWhen, gameEnd } from "@/lib/dates";
 import { mapsUrl, placeName } from "@/lib/locations";
-import { isLateLeave, LATE_LEAVE_HOURS, meetsMinimum, minReliabilityLabel, qualifyIn } from "@/lib/reliability";
+import { isLateLeave, LATE_LEAVE_HOURS, meetsMinimum, minReliabilityLabel } from "@/lib/reliability";
 import { canVote, fillState, hasEnded, hasStarted, hasVoted, isHost, joinedPlayers, myStatus, needsAttendance } from "@/lib/selectors";
 import { gameTitle, skillLabel } from "@/lib/sports";
 import { useAppStore } from "@/lib/store";
@@ -234,7 +234,7 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
             <>
               {!allowed && me ? (
                 <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.label, color: colors.danger, textAlign: "center" }}>
-                  This game needs {game.minReliability}%+ reliability. You’re at {me.reliability}%{qualifyIn(me, game.minReliability) ? ` · You’ll qualify in ${qualifyIn(me, game.minReliability)}` : ""}.
+                  This game needs {game.minReliability}%+ reliability. You’re at {me.reliability}%.
                 </Text>
               ) : null}
               <Button

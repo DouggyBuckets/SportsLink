@@ -1,4 +1,4 @@
-import { AttendanceMark, Game, MiniProfile, Profile, ScoreEvent } from "@/lib/types";
+import { AttendanceMark, Game, MiniProfile, ScoreEvent } from "@/lib/types";
 
 // The reliability score. Everyone starts at 100%. Each game that counts earns
 // credit for how the player did (see MARK_CREDIT), leaving within
@@ -75,16 +75,6 @@ export function gamesUntil(events: ScoreEvent[], target: number, now = Date.now(
 export const nextThreshold = (score: number) => MIN_RELIABILITY_OPTIONS.find((m) => m > score) ?? null;
 
 export const weeksLabel = (weeks: number) => (weeks <= 1 ? "about a week" : `about ${weeks} weeks`);
-
-// "~2 weeks": how soon a player locked out of a game will meet its minimum
-// without playing. Own profile only (needs scoreEvents); null if it's more
-// than two months off.
-export function qualifyIn(u: Pick<Profile, "scoreEvents">, min: number, now = Date.now()): string | null {
-  if (!u.scoreEvents?.length) return null;
-  const weeks = weeksUntil(u.scoreEvents, min, now);
-  if (weeks === null || weeks === 0 || weeks > 8) return null;
-  return weeks === 1 ? "~1 week" : `~${weeks} weeks`;
-}
 
 // ── Labels ──────────────────────────────────────────────────────────────
 
