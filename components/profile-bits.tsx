@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/bits";
 import { Card } from "@/components/ui/card";
 import { fonts, spacing, typeScale } from "@/constants/theme";
 import { Alert } from "@/lib/alert";
-import { gamesUntil, isNewPlayer, LATE_LEAVE_HOURS, MARK_CREDIT, missWeight, nextThreshold, reliabilityTier, reliabilityTone, weeklyChange, weeksLabel, weeksUntil } from "@/lib/reliability";
+import { gamesUntil, isNewPlayer, LATE_LEAVE_HOURS, MARK_CREDIT, nextThreshold, reliabilityTier, reliabilityTone, weeklyChange, weeksLabel, weeksUntil } from "@/lib/reliability";
 import { skillLabel } from "@/lib/sports";
 import { AttendanceMark, Profile } from "@/lib/types";
 import { Icon } from "@/components/ui/icon";
@@ -56,22 +56,21 @@ function Stat({ value, label, color }: { value: number; label: string; color?: s
 
 export type RecentGame = { at: string; mark: AttendanceMark };
 
-function Key({ color, label, faded }: { color: string; label: string; faded?: boolean }) {
+function Key({ color, label }: { color: string; label: string }) {
   const { colors } = useAppTheme();
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-      <View style={{ width: 9, height: 9, borderRadius: 2, backgroundColor: color, opacity: faded ? 0.35 : 1 }} />
+      <View style={{ width: 9, height: 9, borderRadius: 2, backgroundColor: color }} />
       <Text style={{ fontFamily: fonts.body, fontSize: typeScale.caption, color: colors.textTertiary }}>{label}</Text>
     </View>
   );
 }
 
 // One square per recent counted game, oldest to newest, so it lines up with
-// "showed up to X of Y". Misses fade as they age, the way they count less
-// toward the score.
+// "showed up to X of Y".
 function RecentGames({ history }: { history: RecentGame[] }) {
   const { colors } = useAppTheme();
-  const anyMiss = history.some((g) => g.mark !== "present");
+  const anyMiss = history.some((g) => g.mark === "no_show");
   const anyPartial = history.some((g) => g.mark === "late" || g.mark === "left_early");
   return (
     <View style={{ gap: spacing.xs }}>
@@ -80,9 +79,8 @@ function RecentGames({ history }: { history: RecentGame[] }) {
         {history.map((g, i) => {
           const tone = g.mark === "present" ? "success" : g.mark === "no_show" ? "danger" : "warning";
           const icon = g.mark === "present" ? "checkmark" : g.mark === "no_show" ? "xmark" : "minus";
-          const weight = g.mark !== "present" ? Math.max(0.3, missWeight(g.at)) : 1;
           return (
-            <View key={i} style={{ flex: 1, maxWidth: 30, aspectRatio: 1, borderRadius: 6, backgroundColor: colors[tone], opacity: weight, alignItems: "center", justifyContent: "center" }}>
+            <View key={i} style={{ flex: 1, maxWidth: 30, aspectRatio: 1, borderRadius: 6, backgroundColor: colors[tone], alignItems: "center", justifyContent: "center" }}>
               <Icon name={icon} size={11} color="#FFFFFF" />
             </View>
           );
@@ -92,7 +90,6 @@ function RecentGames({ history }: { history: RecentGame[] }) {
         <Key color={colors.success} label="Showed up" />
         {anyPartial ? <Key color={colors.warning} label="Late / left early" /> : null}
         {anyMiss ? <Key color={colors.danger} label="No-show" /> : null}
-        {anyMiss ? <Key color={colors.danger} label="Faded = older, counts less" faded /> : null}
       </View>
     </View>
   );
