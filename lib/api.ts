@@ -1,10 +1,10 @@
 import { dayKey } from "@/lib/dates";
 import { buildGames, buildHistory, buildMyUpcoming, historyStats, ME_ID, mini, MOCK_USERS, mockUserById } from "@/lib/mock";
 import { cancelAllGameReminders, cancelGameReminder, scheduleGameReminder, syncGameReminders } from "@/lib/notifications";
-import { isLateLeave, meetsMinimum, reliabilityScore } from "@/lib/reliability";
+import { isLateLeave, MARK_CREDIT, meetsMinimum, scoreFromEvents } from "@/lib/reliability";
 import { Invite, useAppStore } from "@/lib/store";
 import { DEMO, supabase } from "@/lib/supabase";
-import { AvailabilityBlock, ClassYear, Friend, FriendState, Game, Message, MiniProfile, NewGame, Participant, Profile, SkillLevel, SportId } from "@/lib/types";
+import { AttendanceMark, AvailabilityBlock, ClassYear, Friend, FriendState, Game, Message, MiniProfile, NewGame, Participant, Profile, ScoreEvent, SkillLevel, SportId } from "@/lib/types";
 
 // Single doorway for every read and write. Each function has a live path
 // (Supabase RPCs, which return the same camelCase JSON as the client types -
@@ -48,7 +48,7 @@ export async function signInOrSignUp(email: string, password: string, exists: bo
     const uniqname = email.split("@")[0];
     if (!exists) {
       store().reset();
-      store().patch({ me: { id: ME_ID, name: "", uniqname, reliability: 100, ratedGames: 0, classYear: null, bio: "", sports: [], gamesPlayed: 0, gamesHosted: 0, attended: 0 } });
+      store().patch({ me: { id: ME_ID, name: "", uniqname, reliability: 100, ratedGames: 0, classYear: null, bio: "", sports: [], gamesPlayed: 0, gamesHosted: 0, attended: 0, scoreEvents: [] } });
     }
     store().patch({ isAuthed: true });
     await loadAll();
@@ -101,9 +101,13 @@ type Bootstrap = {
 
 export async function loadAll() {
   if (DEMO) {
+    const before = store();
+    if (!before.me) return;
+    // Misses fade week by week, so the score can move without any new game.
+    if (before.me.scoreEvents && before.seedDay !== null) setDemoScore(before.me.scoreEvents, {});
     const s = store();
     const today = dayKey(new Date());
-    if (s.seedDay === today || !s.me) return;
+    if (s.seedDay === today) return;
     // New day: regenerate the rolling week of other people's games.
     const games = buildGames();
     // Everything the viewer is in - upcoming, finished and already-marked
@@ -112,7 +116,7 @@ export async function loadAll() {
     const firstRun = s.seedDay === null;
     // First run (or "Reset demo data"): the viewer gets a match history and
     // two upcoming games, with profile numbers to match.
-    const me = firstRun ? { ...s.me, ...historyStats() } : s.me;
+    const me = firstRun ? { ...s.me!, ...historyStats() } : s.me!;
     const upcoming = firstRun ? buildMyUpcoming(mini(me)) : [];
     const seeded = [...games.filter((g) => !mine.some((m) => m.id === g.id)), ...mine, ...upcoming, ...(firstRun ? buildHistory(mini(me)) : [])];
     s.patch({
@@ -181,8 +185,17 @@ function recordMissIfLate(g: Game) {
   const others = g.participants.some((p) => p.user.id !== ME_ID);
   const me = store().me;
   if (!me || !others || !isLateLeave(g)) return;
-  const ratedGames = me.ratedGames + 1;
-  store().patch({ me: { ...me, ratedGames, reliability: reliabilityScore(me.attended, ratedGames - me.attended) } });
+  setDemoScore([{ at: new Date().toISOString(), credit: 0 }, ...(me.scoreEvents ?? [])], { ratedGames: me.ratedGames + 1 });
+}
+
+// Demo stand-in for _refresh_profile_stats on the viewer: the score from
+// their games, copied into every roster they appear on.
+function setDemoScore(scoreEvents: ScoreEvent[], counts: { ratedGames?: number; attended?: number }) {
+  const s = store();
+  const me = { ...s.me!, ...counts, scoreEvents, reliability: scoreFromEvents(scoreEvents) };
+  if (me.reliability === s.me!.reliability && scoreEvents === s.me!.scoreEvents) return;
+  const sync = (u: MiniProfile): MiniProfile => (u.id === ME_ID ? { ...u, reliability: me.reliability, ratedGames: me.ratedGames } : u);
+  s.patch({ me, games: s.games.map((g) => ({ ...g, host: g.host && sync(g.host), participants: g.participants.map((p) => ({ ...p, user: sync(p.user) })) })) });
 }
 
 const joinedCount = (g: Game) => g.participants.filter((p) => p.status === "joined").length;
@@ -201,6 +214,7 @@ export async function joinGame(id: string): Promise<Game> {
       status: "joined",
       joinedAt: new Date().toISOString(),
       confirmed: false,
+      mark: null,
       attended: null,
     };
     game = { ...g, participants: [...g.participants, spot] };
@@ -262,8 +276,8 @@ export async function cancelGame(id: string): Promise<Game> {
 export async function postGame(input: NewGame): Promise<Game> {
   let game: Game;
   if (DEMO) {
-    const host: Participant = { user: meMini(), status: "joined", joinedAt: new Date().toISOString(), confirmed: true, attended: null };
-    game = { ...input, id: `mine-${Date.now()}`, host: meMini(), isOfficial: false, status: "open", participants: [host] };
+    const host: Participant = { user: meMini(), status: "joined", joinedAt: new Date().toISOString(), confirmed: true, mark: null, attended: null };
+    game = { ...input, id: `mine-${Date.now()}`, host: meMini(), isOfficial: false, status: "open", participants: [host], attendanceBy: null, attendanceVote: null };
     store().patch({ me: { ...store().me!, gamesHosted: store().me!.gamesHosted + 1 } });
   } else {
     game = await rpc<Game>("create_game", { p: input });
@@ -295,60 +309,83 @@ export async function updateGame(id: string, input: NewGame): Promise<Game> {
   return game;
 }
 
-// Host-only, after kickoff. Everyone joined who isn't in `attendedIds` is
-// recorded as a no-show, which is what feeds reliability scores.
-export async function markAttendance(id: string, attendedIds: string[]): Promise<Game> {
+// Host-only, from kickoff until HOST_MARK_HOURS after the game. `marks` has
+// one entry per player; anyone missing is recorded as a no-show. The marks
+// are what feed reliability scores.
+export async function markAttendance(id: string, marks: Record<string, AttendanceMark>): Promise<Game> {
   let game: Game;
   if (DEMO) {
     const g = findGame(id);
+    const markOf = (userId: string): AttendanceMark => marks[userId] ?? "no_show";
     // Only players marked for the first time move their score.
-    const changed = new Map(g.participants.filter((p) => p.status === "joined" && p.attended === null).map((p) => [p.user.id, attendedIds.includes(p.user.id)]));
+    const changed = new Map(g.participants.filter((p) => p.mark === null).map((p) => [p.user.id, markOf(p.user.id)]));
     game = {
       ...g,
       status: "completed",
-      participants: g.participants.map((p) => (p.status === "joined" ? { ...p, attended: attendedIds.includes(p.user.id) } : p)),
+      attendanceBy: "host",
+      attendanceVote: null,
+      participants: g.participants.map((p) => ({ ...p, mark: markOf(p.user.id), attended: markOf(p.user.id) !== "no_show" })),
     };
     store().upsertGame(game);
-    applyDemoScores(changed);
+    applyDemoScores(changed, g.startsAt);
     return findGame(id);
   }
-  game = await rpc<Game>("mark_attendance", { p_game_id: id, p_attended: attendedIds });
+  game = await rpc<Game>("mark_attendance", { p_game_id: id, p_marks: marks });
   store().upsertGame(game);
   // The host's own stats changed too; pull them so the profile updates.
   loadAll().catch(() => {});
   return game;
 }
 
-// Demo stand-in for _refresh_profile_stats: moves the viewer's numbers and
-// every copy of the other players' scores, so the profile and rosters update
-// as soon as attendance is saved.
-function applyDemoScores(changed: Map<string, boolean>) {
+// Any player in a game whose host didn't mark it in time, while the vote is
+// open. `votes`: player id -> showed up. Votes can be changed until it closes.
+export async function voteAttendance(id: string, votes: Record<string, boolean>): Promise<Game> {
+  let game: Game;
+  if (DEMO) {
+    const g = findGame(id);
+    const vote = g.attendanceVote;
+    if (!vote) throw new Error("Voting on this game has closed.");
+    const tally = { ...vote.tally };
+    // Swap the viewer's earlier votes for the new ones.
+    for (const [playerId, showed] of Object.entries(vote.mine)) {
+      const t = tally[playerId];
+      if (t) tally[playerId] = { yes: t.yes - (showed ? 1 : 0), no: t.no - (showed ? 0 : 1) };
+    }
+    for (const [playerId, showed] of Object.entries(votes)) {
+      const t = tally[playerId] ?? { yes: 0, no: 0 };
+      tally[playerId] = { yes: t.yes + (showed ? 1 : 0), no: t.no + (showed ? 0 : 1) };
+    }
+    const firstVote = Object.keys(vote.mine).length === 0;
+    game = { ...g, attendanceVote: { ...vote, mine: votes, tally, voted: vote.voted + (firstVote ? 1 : 0) } };
+  } else {
+    game = await rpc<Game>("vote_attendance", { p_game_id: id, p_votes: votes });
+  }
+  store().upsertGame(game);
+  return game;
+}
+
+// Demo stand-in for _refresh_profile_stats after marking: moves the viewer's
+// numbers and every copy of the other players' scores, so the profile and
+// rosters update as soon as attendance is saved.
+function applyDemoScores(changed: Map<string, AttendanceMark>, at: string) {
   if (changed.size === 0) return;
-  const s = store();
-  const me = s.me;
-  const myShowed = changed.get(ME_ID);
-  const nextMe =
-    me && myShowed !== undefined
-      ? (() => {
-          const attended = me.attended + (myShowed ? 1 : 0);
-          const ratedGames = me.ratedGames + 1;
-          return { ...me, attended, ratedGames, reliability: reliabilityScore(attended, ratedGames - attended) };
-        })()
-      : me;
+  const myMark = changed.get(ME_ID);
+  const me = store().me;
+  if (me && myMark) {
+    const scoreEvents = [{ at, credit: MARK_CREDIT[myMark] }, ...(me.scoreEvents ?? [])].sort((a, b) => b.at.localeCompare(a.at));
+    setDemoScore(scoreEvents, { ratedGames: me.ratedGames + 1, attended: me.attended + (myMark === "no_show" ? 0 : 1) });
+  }
   const bump = (u: MiniProfile): MiniProfile => {
-    if (u.id === ME_ID && nextMe) return { ...u, reliability: nextMe.reliability, ratedGames: nextMe.ratedGames };
-    const showed = changed.get(u.id);
-    if (showed === undefined) return u;
-    // Mock players only carry a score and a count; back out their attended
-    // count from those.
-    const attended = Math.max(0, Math.round((u.reliability * (u.ratedGames + 2)) / 100 - 2)) + (showed ? 1 : 0);
+    const mark = changed.get(u.id);
+    if (u.id === ME_ID || !mark) return u;
+    // Mock players only carry a score and a count; back out their total
+    // credit from those (the two free games included) and add this game.
+    const credit = (u.reliability * (u.ratedGames + 2)) / 100 + MARK_CREDIT[mark];
     const ratedGames = u.ratedGames + 1;
-    return { ...u, ratedGames, reliability: reliabilityScore(attended, ratedGames - attended) };
+    return { ...u, ratedGames, reliability: Math.round((credit * 100) / (ratedGames + 2)) };
   };
-  s.patch({
-    ...(nextMe ? { me: nextMe } : {}),
-    games: s.games.map((g) => ({ ...g, host: g.host && bump(g.host), participants: g.participants.map((p) => ({ ...p, user: bump(p.user) })) })),
-  });
+  const s = store();
+  s.patch({ games: s.games.map((g) => ({ ...g, host: g.host && bump(g.host), participants: g.participants.map((p) => ({ ...p, user: bump(p.user) })) })) });
 }
 
 export async function inviteFriends(gameId: string, friendIds: string[]) {

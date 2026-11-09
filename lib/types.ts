@@ -27,9 +27,19 @@ export type Profile = MiniProfile & {
   sports: { sport: SportId; skill: SkillLevel }[];
   gamesPlayed: number;
   gamesHosted: number;
-  // Of ratedGames, how many they showed up to.
+  // Of ratedGames, how many they showed up to (late and left early count).
   attended: number;
+  // Own profile only: every game that counts toward the score, newest first.
+  // The app uses it to show how the score will recover (lib/reliability.ts).
+  scoreEvents?: ScoreEvent[];
 };
+
+// One game that counts toward a reliability score: when it happened and how
+// much credit it earned (1 = showed up, 0 = no-show; see MARK_CREDIT).
+export type ScoreEvent = { at: string; credit: number };
+
+// How the host marked a player. Late and left early earn partial credit.
+export type AttendanceMark = "present" | "late" | "left_early" | "no_show";
 
 // MVP1 has no waitlist: you're either in a game or not.
 export type ParticipantStatus = "joined";
@@ -39,8 +49,22 @@ export type Participant = {
   status: ParticipantStatus;
   joinedAt: string;
   confirmed: boolean;
-  // null until the host marks attendance after the game.
+  // null until attendance is settled (by the host, or by a player vote).
+  // attended is false only for a no-show.
+  mark: AttendanceMark | null;
   attended: boolean | null;
+};
+
+// Open while players vote on a game whose host didn't mark attendance in
+// time. Votes are anonymous: the viewer sees their own votes and the totals.
+export type AttendanceVote = {
+  closesAt: string;
+  // Players in the game, and how many of them have voted so far.
+  voters: number;
+  voted: number;
+  // The viewer's votes so far, keyed by player id: true = showed up.
+  mine: Record<string, boolean>;
+  tally: Record<string, { yes: number; no: number }>;
 };
 
 export type GameStatus = "open" | "cancelled" | "completed";
@@ -67,6 +91,9 @@ export type Game = {
   visibility: "campus" | "friends";
   status: GameStatus;
   participants: Participant[];
+  // Who settled attendance: the host, or the players by vote. null = not yet.
+  attendanceBy: "host" | "vote" | null;
+  attendanceVote: AttendanceVote | null;
 };
 
 export type NewGame = Pick<

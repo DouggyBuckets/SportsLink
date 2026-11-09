@@ -1,7 +1,7 @@
 import { locationsForSport, OTHER_LOCATION_ID } from "@/lib/locations";
-import { reliabilityScore } from "@/lib/reliability";
+import { MARK_CREDIT, reliabilityScore, scoreFromEvents } from "@/lib/reliability";
 import { formatSizing, SOCCER, sportMeta } from "@/lib/sports";
-import { AvailabilityBlock, ClassYear, Game, MiniProfile, Participant, Profile, SkillLevel, SportId } from "@/lib/types";
+import { AttendanceMark, AttendanceVote, AvailabilityBlock, ClassYear, Game, MiniProfile, Participant, Profile, SkillLevel, SportId } from "@/lib/types";
 
 // Demo-mode world: a campus worth of fake students and two rolling weeks of
 // soccer games generated relative to "now", so the app always looks alive without
@@ -95,6 +95,7 @@ function participants(rand: () => number, host: MockUser | null, joined: number,
     status,
     joinedAt: new Date(Date.now() - (i + 1) * 3_600_000).toISOString(),
     confirmed: status === "joined" && hoursOut < 24 && rand() < 0.7,
+    mark: null,
     attended: null,
   });
   const list: Participant[] = host ? [{ ...make(host, "joined", 99), confirmed: true }] : [];
@@ -145,6 +146,8 @@ export function buildGames(now = new Date()): Game[] {
         visibility: "campus",
         status: "open",
         participants: participants(rand, host, Math.min(joined, capacity), startsAt, minReliability),
+        attendanceBy: null,
+        attendanceVote: null,
       });
     }
   }
@@ -152,54 +155,82 @@ export function buildGames(now = new Date()): Game[] {
 }
 
 // Past games the viewer played, so the profile's reliability card, history
-// and the host's attendance flow all have something to show on a fresh
-// install: eight showed up, one no-show (91%), plus three games the viewer
-// hosted recently (earlier today, yesterday, 3 days ago) that are waiting
-// for them to mark attendance.
-type PastOutcome = "showed" | "missed" | "unmarked";
-const PAST: { days: number; format: string; locationId: string; hostedByMe: boolean; outcome: PastOutcome }[] = [
-  { days: 0, format: "5v5", locationId: "mitchell", hostedByMe: true, outcome: "unmarked" },
-  { days: 1, format: "7v7", locationId: "palmer-field", hostedByMe: true, outcome: "unmarked" },
-  { days: 3, format: "5v5", locationId: "hadley", hostedByMe: true, outcome: "unmarked" },
-  { days: 4, format: "7v7", locationId: "palmer-field", hostedByMe: false, outcome: "showed" },
-  { days: 6, format: "5v5", locationId: "hadley", hostedByMe: true, outcome: "showed" },
-  { days: 9, format: "7v7", locationId: "hubbard-turf", hostedByMe: false, outcome: "showed" },
-  { days: 11, format: "11v11", locationId: "fuller-park", hostedByMe: false, outcome: "missed" },
-  { days: 14, format: "5v5", locationId: "coliseum", hostedByMe: false, outcome: "showed" },
-  { days: 17, format: "7v7", locationId: "burns-park", hostedByMe: true, outcome: "showed" },
-  { days: 20, format: "5v5", locationId: "mitchell", hostedByMe: false, outcome: "showed" },
-  { days: 24, format: "7v7", locationId: "palmer-field", hostedByMe: false, outcome: "showed" },
-  { days: 28, format: "5v5", locationId: "hadley", hostedByMe: false, outcome: "showed" },
+// and both attendance flows have something to show on a fresh install:
+//   * two games the viewer hosted that ended within the last day, waiting
+//     for them to mark attendance (hosts get 24 hours)
+//   * one game someone else hosted that ended 30 hours ago without being
+//     marked, so its players are voting on who came
+//   * older games, including a run of misses two to three weeks ago that are
+//     fading, so the score is "Recovering" and climbing back toward 80%.
+type PastOutcome = AttendanceMark | "unmarked" | "vote";
+type Past = { ago: { hours: number } | { days: number }; format: string; locationId: string; hostedByMe: boolean; outcome: PastOutcome };
+const PAST: Past[] = [
+  { ago: { hours: 2.75 }, format: "5v5", locationId: "mitchell", hostedByMe: true, outcome: "unmarked" },
+  { ago: { hours: 20 }, format: "7v7", locationId: "palmer-field", hostedByMe: true, outcome: "unmarked" },
+  { ago: { hours: 31.5 }, format: "5v5", locationId: "hadley", hostedByMe: false, outcome: "vote" },
+  { ago: { days: 4 }, format: "7v7", locationId: "palmer-field", hostedByMe: false, outcome: "present" },
+  { ago: { days: 6 }, format: "5v5", locationId: "hadley", hostedByMe: true, outcome: "present" },
+  { ago: { days: 8 }, format: "7v7", locationId: "hubbard-turf", hostedByMe: false, outcome: "late" },
+  { ago: { days: 9 }, format: "11v11", locationId: "fuller-park", hostedByMe: false, outcome: "no_show" },
+  { ago: { days: 13 }, format: "5v5", locationId: "coliseum", hostedByMe: false, outcome: "no_show" },
+  { ago: { days: 16 }, format: "7v7", locationId: "burns-park", hostedByMe: false, outcome: "no_show" },
+  { ago: { days: 20 }, format: "5v5", locationId: "mitchell", hostedByMe: false, outcome: "present" },
+  { ago: { days: 24 }, format: "7v7", locationId: "palmer-field", hostedByMe: false, outcome: "left_early" },
+  { ago: { days: 28 }, format: "5v5", locationId: "hadley", hostedByMe: false, outcome: "present" },
 ];
 
-// Today's game kicked off a bit under 3 hours ago, so it ended about an hour ago.
-const pastStart = (days: number, now: Date) =>
-  days === 0
-    ? new Date(Math.floor((now.getTime() - 165 * 60_000) / (15 * 60_000)) * 15 * 60_000)
-    : new Date(now.getFullYear(), now.getMonth(), now.getDate() - days, 17, 0);
+const DURATION_MIN = 90;
+
+// Recent games are placed in hours (rounded to 15 minutes) so they land in
+// the right attendance window whatever time it is; older ones at 5pm.
+const pastStart = (ago: Past["ago"], now: Date) =>
+  "hours" in ago
+    ? new Date(Math.floor((now.getTime() - ago.hours * 3_600_000) / (15 * 60_000)) * 15 * 60_000)
+    : new Date(now.getFullYear(), now.getMonth(), now.getDate() - ago.days, 17, 0);
+
+const isMark = (o: PastOutcome): o is AttendanceMark => o in MARK_CREDIT;
 
 // The viewer's profile numbers implied by buildHistory.
-export function historyStats() {
-  const attended = PAST.filter((p) => p.outcome === "showed").length;
-  const missed = PAST.filter((p) => p.outcome === "missed").length;
+export function historyStats(now = new Date()) {
+  const marked = PAST.filter((p) => isMark(p.outcome));
+  const scoreEvents = marked
+    .map((p) => ({ at: pastStart(p.ago, now).toISOString(), credit: MARK_CREDIT[p.outcome as AttendanceMark] }))
+    .sort((a, b) => b.at.localeCompare(a.at));
+  const attended = marked.filter((p) => p.outcome !== "no_show").length;
   return {
     attended,
-    ratedGames: attended + missed,
-    reliability: reliabilityScore(attended, missed),
-    gamesPlayed: PAST.filter((p) => p.outcome !== "missed").length,
+    ratedGames: marked.length,
+    reliability: scoreFromEvents(scoreEvents, now.getTime()),
+    scoreEvents,
+    gamesPlayed: PAST.filter((p) => p.outcome !== "no_show").length,
     gamesHosted: PAST.filter((p) => p.hostedByMe).length,
   };
+}
+
+// Votes other players have already cast on the "vote" game: most say each
+// player came, one player looks like a no-show and one has no votes yet.
+// The viewer is last in `players`.
+function seededVote(players: Participant[], closesAt: Date): AttendanceVote {
+  const tally: AttendanceVote["tally"] = {};
+  players.forEach((p, i) => {
+    if (i === players.length - 2) return;
+    tally[p.user.id] = i === 3 ? { yes: 1, no: 4 } : { yes: i % 2 ? 4 : 5, no: 0 };
+  });
+  return { closesAt: closesAt.toISOString(), voters: players.length, voted: 5, mine: {}, tally };
 }
 
 export function buildHistory(me: MiniProfile, now = new Date()): Game[] {
   const rand = rng(7);
   return PAST.map((p, i) => {
-    const startsAt = pastStart(p.days, now);
+    const startsAt = pastStart(p.ago, now);
     const host = p.hostedByMe ? null : MOCK_USERS[(i * 3 + 2) % MOCK_USERS.length];
     const { capacity, minPlayers } = formatSizing(p.format, SOCCER);
-    const unmarked = p.outcome === "unmarked";
-    const others = participants(rand, host, minPlayers - 1, startsAt).map((x) => ({ ...x, confirmed: true, attended: unmarked ? null : true }));
-    const mine: Participant = { user: me, status: "joined", joinedAt: startsAt.toISOString(), confirmed: true, attended: unmarked ? null : p.outcome === "showed" };
+    const marked = isMark(p.outcome);
+    const others = participants(rand, host, minPlayers - 1, startsAt).map((x): Participant => ({ ...x, confirmed: true, mark: marked ? "present" : null, attended: marked ? true : null }));
+    const myMark = marked ? (p.outcome as AttendanceMark) : null;
+    const mine: Participant = { user: me, status: "joined", joinedAt: startsAt.toISOString(), confirmed: true, mark: myMark, attended: myMark && myMark !== "no_show" };
+    const players = [mine, ...others];
+    const closesAt = new Date(startsAt.getTime() + DURATION_MIN * 60_000 + 72 * 3_600_000);
     return {
       id: `h${i + 1}`,
       sport: SOCCER,
@@ -208,7 +239,7 @@ export function buildHistory(me: MiniProfile, now = new Date()): Game[] {
       locationId: p.locationId,
       locationNote: "",
       startsAt: startsAt.toISOString(),
-      durationMin: 90,
+      durationMin: DURATION_MIN,
       capacity,
       minPlayers,
       skill: "any",
@@ -218,7 +249,10 @@ export function buildHistory(me: MiniProfile, now = new Date()): Game[] {
       isOfficial: false,
       visibility: "campus",
       status: "completed",
-      participants: [mine, ...others],
+      participants: players,
+      attendanceBy: marked ? "host" : null,
+      // The host comes first in the vote list, like the roster.
+      attendanceVote: p.outcome === "vote" ? seededVote([...others, mine], closesAt) : null,
     };
   });
 }
@@ -231,8 +265,8 @@ export function buildMyUpcoming(me: MiniProfile, now = new Date()): Game[] {
   const soon = new Date(Math.ceil((now.getTime() + 75 * 60_000) / (5 * 60_000)) * 5 * 60_000);
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 18, 0);
   const host = MOCK_USERS.find((u) => u.ratedGames > 0 && u.reliability >= 90) ?? MOCK_USERS[0];
-  const base = { sport: SOCCER, customSport: "", locationNote: "", durationMin: 90, skill: "any" as SkillLevel, notes: "", isOfficial: false, visibility: "campus" as const, status: "open" as const };
-  const joinedNow = (u: MiniProfile, hosting: boolean): Participant => ({ user: u, status: "joined", joinedAt: new Date(now.getTime() - 3_600_000).toISOString(), confirmed: hosting, attended: null });
+  const base = { sport: SOCCER, customSport: "", locationNote: "", durationMin: 90, skill: "any" as SkillLevel, notes: "", isOfficial: false, visibility: "campus" as const, status: "open" as const, attendanceBy: null, attendanceVote: null };
+  const joinedNow = (u: MiniProfile, hosting: boolean): Participant => ({ user: u, status: "joined", joinedAt: new Date(now.getTime() - 3_600_000).toISOString(), confirmed: hosting, mark: null, attended: null });
   const soonSize = formatSizing("5v5", SOCCER);
   const hostSize = formatSizing("7v7", SOCCER);
   return [

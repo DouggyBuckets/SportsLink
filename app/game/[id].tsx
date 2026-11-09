@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Linking, Pressable, ScrollView, Text, View } from
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/components/theme";
 import { useNow } from "@/hooks/use-now";
+import { MarkBadge } from "@/components/attendance-bits";
 import { Avatar, Badge, EmptyState, ReliabilityBadge } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,8 +16,8 @@ import { Alert } from "@/lib/alert";
 import { cancelGame, confirmSpot, joinGame, leaveGame } from "@/lib/api";
 import { formatDuration, formatTime, formatWhen, gameEnd } from "@/lib/dates";
 import { mapsUrl, placeName } from "@/lib/locations";
-import { isLateLeave, LATE_LEAVE_HOURS, meetsMinimum, minReliabilityLabel } from "@/lib/reliability";
-import { fillState, hasEnded, hasStarted, isHost, joinedPlayers, myStatus, needsAttendance } from "@/lib/selectors";
+import { isLateLeave, LATE_LEAVE_HOURS, meetsMinimum, minReliabilityLabel, qualifyIn } from "@/lib/reliability";
+import { canVote, fillState, hasEnded, hasStarted, hasVoted, isHost, joinedPlayers, myStatus, needsAttendance } from "@/lib/selectors";
 import { gameTitle, skillLabel } from "@/lib/sports";
 import { useAppStore } from "@/lib/store";
 import { Game, Participant } from "@/lib/types";
@@ -67,6 +68,7 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
   const msToStart = new Date(game.startsAt).getTime() - now;
   const canConfirm = open && status === "joined" && !mine?.confirmed && msToStart < CONFIRM_WINDOW_MS;
   const marking = needsAttendance(game, meId, new Date(now));
+  const voting = canVote(game, meId, new Date(now));
   const allowed = !me || meetsMinimum(me, game.minReliability);
   const spotsLeft = game.capacity - players.length;
   const late = isLateLeave(game, now);
@@ -120,10 +122,8 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
           </Text>
           {game.host?.id === p.user.id ? <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.caption, color: colors.tint }}>Host</Text> : null}
         </View>
-        {p.attended === false ? (
-          <Badge label="No-show" tone="danger" />
-        ) : p.attended ? (
-          <Badge label="Showed up" tone="success" icon="checkmark" />
+        {p.mark ? (
+          <MarkBadge mark={p.mark} />
         ) : (
           <>
             {p.confirmed && open ? <Icon name="checkmark.circle.fill" size={16} color={colors.success} /> : null}
@@ -177,6 +177,18 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
           </Card>
         ) : null}
 
+        {voting ? (
+          <Card tone="maize">
+            <View style={{ gap: spacing.sm }}>
+              <Text style={{ fontFamily: fonts.heading, fontSize: typeScale.subtitle, color: colors.text }}>Help settle attendance</Text>
+              <Text style={{ fontFamily: fonts.body, fontSize: typeScale.body, lineHeight: 21, color: colors.textSecondary }}>
+                The host didn’t mark who came, so the players decide.
+              </Text>
+              <Button label={hasVoted(game) ? "Change my votes" : "Vote on attendance"} variant="primary" size="md" icon="checklist" onPress={() => router.push({ pathname: "/vote/[id]", params: { id: game.id } })} />
+            </View>
+          </Card>
+        ) : null}
+
         <Card padding={0}>
           {fact("clock", "When", `${formatWhen(game.startsAt)} – ${formatTime(gameEnd(game))} (${formatDuration(game.durationMin)})`)}
           <Divider inset={spacing.md} />
@@ -222,7 +234,7 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
             <>
               {!allowed && me ? (
                 <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.label, color: colors.danger, textAlign: "center" }}>
-                  This game needs {game.minReliability}%+ reliability. You’re at {me.reliability}%.
+                  This game needs {game.minReliability}%+ reliability. You’re at {me.reliability}%{qualifyIn(me, game.minReliability) ? ` · You’ll qualify in ${qualifyIn(me, game.minReliability)}` : ""}.
                 </Text>
               ) : null}
               <Button

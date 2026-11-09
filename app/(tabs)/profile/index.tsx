@@ -2,7 +2,8 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Pressable, Text, View } from "react-native";
 import { GameCard } from "@/components/game-card";
-import { ReliabilityCard, soccerLevel } from "@/components/profile-bits";
+import { MarkBadge } from "@/components/attendance-bits";
+import { RecoveryExplainer, ReliabilityCard, soccerLevel } from "@/components/profile-bits";
 import { useAppTheme } from "@/components/theme";
 import { Avatar, Badge, EmptyState, SectionTitle } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
@@ -13,9 +14,10 @@ import { Screen } from "@/components/ui/screen";
 import { fonts, spacing, typeScale } from "@/constants/theme";
 import { formatWhen } from "@/lib/dates";
 import { placeName } from "@/lib/locations";
-import { myPast, myUpcoming, needsAttendance } from "@/lib/selectors";
+import { attendancePhase, canVote, hasVoted, myPast, myUpcoming, needsAttendance } from "@/lib/selectors";
 import { gameTitle } from "@/lib/sports";
 import { useAppStore } from "@/lib/store";
+import { Game } from "@/lib/types";
 
 export default function ProfileTab() {
   const { colors } = useAppTheme();
@@ -47,7 +49,8 @@ export default function ProfileTab() {
         </View>
       </Card>
 
-      <ReliabilityCard user={me} history={past.map((g) => g.participants.find((p) => p.user.id === me.id)?.attended ?? null)} />
+      <ReliabilityCard user={me} history={past.map((g) => ({ at: g.startsAt, mark: g.participants.find((p) => p.user.id === me.id)?.mark ?? null }))} />
+      {me.ratedGames > me.attended || me.reliability < 100 ? <RecoveryExplainer /> : null}
 
       <View style={{ marginTop: spacing.sm }}>
         <SectionTitle title="Upcoming" />
@@ -66,13 +69,12 @@ export default function ProfileTab() {
       {past.length > 0 ? (
         <Card padding={0}>
           {past.map((g, i) => {
-            const mark = needsAttendance(g, me.id);
-            const attended = g.participants.find((p) => p.user.id === me.id)?.attended;
+            const action = pastAction(g, me.id);
             return (
               <View key={g.id}>
                 {i > 0 ? <Divider inset={spacing.md} /> : null}
                 <Pressable
-                  onPress={() => router.push({ pathname: mark ? "/attendance/[id]" : "/game/[id]", params: { id: g.id } })}
+                  onPress={() => router.push({ pathname: action.route, params: { id: g.id } })}
                   style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: pressed ? colors.fill : "transparent" })}
                 >
                   <View style={{ flex: 1 }}>
@@ -81,15 +83,7 @@ export default function ProfileTab() {
                       {formatWhen(g.startsAt)} · {placeName(g)}
                     </Text>
                   </View>
-                  {mark ? (
-                    <Badge label="Mark attendance" tone="maize" />
-                  ) : attended === false ? (
-                    <Badge label="No-show" tone="danger" />
-                  ) : attended ? (
-                    <Badge label="Showed up" tone="success" />
-                  ) : (
-                    <Badge label="Waiting on host" />
-                  )}
+                  {action.badge}
                 </Pressable>
               </View>
             );
@@ -102,4 +96,15 @@ export default function ProfileTab() {
       )}
     </Screen>
   );
+}
+
+// What a past game row says about attendance, and where tapping it goes.
+function pastAction(g: Game, meId: string): { badge: React.ReactNode; route: "/game/[id]" | "/attendance/[id]" | "/vote/[id]" } {
+  if (needsAttendance(g, meId)) return { badge: <Badge label="Mark attendance" tone="maize" />, route: "/attendance/[id]" };
+  if (canVote(g, meId)) return hasVoted(g) ? { badge: <Badge label="Voted" tone="info" icon="checkmark" />, route: "/vote/[id]" } : { badge: <Badge label="Vote on attendance" tone="maize" />, route: "/vote/[id]" };
+  const mark = g.participants.find((p) => p.user.id === meId)?.mark;
+  if (mark) return { badge: <MarkBadge mark={mark} />, route: "/game/[id]" };
+  const phase = attendancePhase(g);
+  const label = phase === "host" ? "Waiting on host" : phase === "vote" ? "Players voting" : "Not counted";
+  return { badge: <Badge label={label} />, route: "/game/[id]" };
 }

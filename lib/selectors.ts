@@ -33,15 +33,31 @@ export const myPast = (games: Game[], meId: string | undefined, now = new Date()
     .filter((g) => g.status !== "cancelled" && hasEnded(g, now) && myStatus(g, meId) === "joined")
     .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
 
-// How long after kickoff the host can still mark attendance. Mirrors the
-// 7-day limit in `mark_attendance`.
-const ATTENDANCE_WINDOW_MS = 7 * 24 * 60 * 60_000;
+// After a game, the host has HOST_MARK_HOURS from the end to mark who came.
+// If they don't, the players vote until VOTE_CLOSE_HOURS after the end, and
+// the majority answer for each player counts. Mirrors `mark_attendance`,
+// `vote_attendance` and `settle_attendance_votes` in the SQL migrations.
+export const HOST_MARK_HOURS = 24;
+export const VOTE_CLOSE_HOURS = 72;
 
-// A hosted game that has kicked off, is still within the marking window, and
-// whose attendance is still unmarked.
-export const needsAttendance = (g: Game, meId: string | undefined, now = new Date()) =>
-  isHost(g, meId) &&
-  hasStarted(g, now) &&
-  now.getTime() - new Date(g.startsAt).getTime() < ATTENDANCE_WINDOW_MS &&
-  g.status !== "cancelled" &&
-  joinedPlayers(g).some((p) => p.attended === null && p.user.id !== meId);
+export type AttendancePhase = "none" | "host" | "vote" | "settled" | "expired";
+
+export function attendancePhase(g: Game, now = new Date()): AttendancePhase {
+  if (g.status === "cancelled" || !hasStarted(g, now)) return "none";
+  if (g.attendanceBy) return "settled";
+  const hoursSinceEnd = (now.getTime() - gameEnd(g).getTime()) / 3_600_000;
+  if (hoursSinceEnd < HOST_MARK_HOURS) return "host";
+  if (hoursSinceEnd < VOTE_CLOSE_HOURS) return "vote";
+  return "expired";
+}
+
+const othersIn = (g: Game, meId: string | undefined) => joinedPlayers(g).some((p) => p.user.id !== meId);
+
+// A hosted game that has kicked off and is waiting on the host to mark it.
+export const needsAttendance = (g: Game, meId: string | undefined, now = new Date()) => isHost(g, meId) && othersIn(g, meId) && attendancePhase(g, now) === "host";
+
+// A game the viewer played whose host missed the deadline: they can vote.
+export const canVote = (g: Game, meId: string | undefined, now = new Date()) =>
+  myStatus(g, meId) === "joined" && othersIn(g, meId) && attendancePhase(g, now) === "vote" && g.attendanceVote !== null;
+
+export const hasVoted = (g: Game) => Object.keys(g.attendanceVote?.mine ?? {}).length > 0;
