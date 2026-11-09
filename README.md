@@ -11,6 +11,16 @@ npx expo start --go --ios     # Expo Go on the simulator
 
 With no `.env`, the app runs in **demo mode**: two generated weeks of soccer games, fake students and a match history for you, all stored on-device. The demo history puts you at about 73% and recovering, with two games you hosted to mark and one game to vote on. `npm run demo` forces demo mode even with a `.env`; Settings → Reset demo data rebuilds it relative to now. Sign in with any uniqname and any password of 8+ characters.
 
+## Presentation data (live)
+
+The live project has fake students and games for presenting. To refresh them relative to now (do it shortly before presenting - the games to mark only stay markable for 24 hours), run in the Supabase SQL editor:
+
+```sql
+select public.seed_presentation_data('smithsas');
+```
+
+It wipes and rebuilds only its own fake data (players with `.demo` uniqnames, games listed in `demo_seed_games`) and gives that account the same story as demo mode.
+
 ## Connect Supabase
 
 1. Create a project, then `supabase link --project-ref <ref>` and `supabase db push` (applies everything in `supabase/migrations`).
