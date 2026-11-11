@@ -29,9 +29,11 @@ type GameCardProps = {
   // false dims the card (outside the viewer's free time). The feed's section
   // headings already say which games fit, so cards don't repeat it.
   fits?: boolean;
+  // Shows a "You're free" badge (the All games view, where cards are mixed).
+  freeBadge?: boolean;
 };
 
-export function GameCard({ game, fits }: GameCardProps) {
+export function GameCard({ game, fits, freeBadge }: GameCardProps) {
   const { colors } = useAppTheme();
   const router = useRouter();
   const me = useAppStore((s) => s.me);
@@ -77,7 +79,7 @@ export function GameCard({ game, fits }: GameCardProps) {
             <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.display, fontSize: typeScale.subtitle, color: colors.text }}>
               {title}
             </Text>
-            {status === "joined" ? <Badge label="You're in" tone="maize" /> : null}
+            {status === "joined" ? <Badge label="You're in" tone="maize" /> : freeBadge ? <Badge label="You're free" tone="success" icon="checkmark" /> : null}
           </View>
 
           <View style={{ paddingLeft: 17, gap: 3 }}>
