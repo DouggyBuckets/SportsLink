@@ -22,6 +22,8 @@ import { useAppStore } from "@/lib/store";
 import { AttendanceMark } from "@/lib/types";
 
 const MARKS: AttendanceMark[] = ["present", "late", "left_early", "no_show"];
+// A check-in proves the player came, so they can't be a no-show.
+const CHECKED_IN_MARKS = MARKS.slice(0, 3);
 
 // Host-only, from kickoff until HOST_MARK_HOURS after the game. Everyone
 // starts as present (most people do show up); the host changes the rest.
@@ -88,10 +90,10 @@ export default function Attendance() {
                     <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.bodyMedium, fontSize: typeScale.body, color: colors.text }}>
                       {p.user.name}
                     </Text>
-                    {p.checkedInAt ? <Badge label="Checked in" tone="success" icon="location.fill" /> : <MarkCreditBadge mark={marks[p.user.id]} />}
+                    {p.checkedInAt ? <Badge label="Checked in" tone="success" icon="location.fill" /> : null}
+                    <MarkCreditBadge mark={marks[p.user.id]} />
                   </View>
-                  {/* A check-in at the field already counts; the host can't change it. */}
-                  {p.checkedInAt ? null : <SegmentedTabs value={marks[p.user.id]} onChange={(m) => setMark(p.user.id, m)} options={MARKS.map((m) => ({ value: m, label: MARK_LABEL[m] }))} />}
+                  <SegmentedTabs value={marks[p.user.id]} onChange={(m) => setMark(p.user.id, m)} options={(p.checkedInAt ? CHECKED_IN_MARKS : MARKS).map((m) => ({ value: m, label: MARK_LABEL[m] }))} />
                 </View>
               </View>
             ))

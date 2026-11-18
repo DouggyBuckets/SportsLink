@@ -169,7 +169,7 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
               <Text style={{ fontFamily: fonts.heading, fontSize: typeScale.subtitle, color: colors.text }}>Check in at {field?.name}</Text>
               <Text style={{ fontFamily: fonts.body, fontSize: typeScale.body, lineHeight: 21, color: colors.textSecondary }}>
                 {checkin === "open"
-                  ? "At the field? Check in and this game counts as showing up, no matter what the host or a vote says."
+                  ? "At the field? Check in and you can’t be marked a no-show for this game."
                   : `Check-in opens at ${formatTime(new Date(new Date(game.startsAt).getTime() - CHECK_IN_OPENS_MIN * 60_000))} and stays open until ${formatTime(new Date(new Date(game.startsAt).getTime() + CHECK_IN_CLOSES_MIN * 60_000))}.`}
               </Text>
               {checkin === "open" ? <Button label="Check in" variant="primary" size="md" icon="location.fill" loading={busy} onPress={() => run(() => checkIn(game.id), "Couldn't check in")} /> : null}
@@ -181,7 +181,7 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
           <Card>
             <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
               <Icon name="checkmark.circle.fill" size={22} color={colors.success} />
-              <Text style={{ flex: 1, fontFamily: fonts.bodyMedium, fontSize: typeScale.body, lineHeight: 20, color: colors.text }}>You’re checked in. This game counts as showing up.</Text>
+              <Text style={{ flex: 1, fontFamily: fonts.bodyMedium, fontSize: typeScale.body, lineHeight: 20, color: colors.text }}>You’re checked in, so you can’t be marked a no-show.</Text>
             </View>
           </Card>
         ) : null}

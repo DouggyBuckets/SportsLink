@@ -53,8 +53,8 @@ export type Participant = {
   // attended is false only for a no-show.
   mark: AttendanceMark | null;
   attended: boolean | null;
-  // Set when the player checked in at the field (lib/checkin.ts). A check-in
-  // counts as showing up, whatever the host or a vote says.
+  // Set when the player checked in at the field (lib/checkin.ts). A checked-in
+  // player can't be marked a no-show (late or left early still can be).
   checkedInAt?: string | null;
 };
 

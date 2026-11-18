@@ -4,8 +4,8 @@ import { myStatus } from "@/lib/selectors";
 import { Game } from "@/lib/types";
 
 // Location check-in. A player at the field can check in from an hour before
-// kickoff to an hour after. It counts as showing up straight away, and the
-// host's marks and the player vote can't override it. Only listed fields
+// kickoff to an hour after. It counts as showing up straight away and rules
+// out a no-show; the host can still mark them late or left early. Only listed fields
 // have coordinates, so custom places fall back to the host marking.
 // Mirrors `check_in` in the SQL migrations.
 export const CHECK_IN_RADIUS_M = 250;

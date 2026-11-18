@@ -318,8 +318,12 @@ export async function markAttendance(id: string, marks: Record<string, Attendanc
   let game: Game;
   if (DEMO) {
     const g = findGame(id);
+    // Checked-in players can be late or left early, never a no-show.
     const checkedIn = new Set(g.participants.filter((p) => p.checkedInAt).map((p) => p.user.id));
-    const markOf = (userId: string): AttendanceMark => (checkedIn.has(userId) ? "present" : (marks[userId] ?? "no_show"));
+    const markOf = (userId: string): AttendanceMark => {
+      const mark = marks[userId] ?? "no_show";
+      return checkedIn.has(userId) && mark === "no_show" ? "present" : mark;
+    };
     // Only players marked for the first time move their score.
     const changed = new Map(g.participants.filter((p) => p.mark === null).map((p) => [p.user.id, markOf(p.user.id)]));
     game = {
@@ -408,7 +412,9 @@ export async function checkIn(id: string): Promise<Game> {
     if (away > CHECK_IN_RADIUS_M) throw new Error(`You're about ${formatDistance(away)} from ${field.name}. Check in once you're at the field.`);
     const now = new Date().toISOString();
     const wasCounted = g.participants.find((p) => p.user.id === ME_ID)?.mark;
-    game = { ...g, participants: g.participants.map((p) => (p.user.id === ME_ID ? { ...p, checkedInAt: now, mark: "present", attended: true } : p)) };
+    // A late / left early mark the host already gave stays.
+    const keep = (m: AttendanceMark | null) => m === "late" || m === "left_early";
+    game = { ...g, participants: g.participants.map((p) => (p.user.id === ME_ID ? { ...p, checkedInAt: now, mark: keep(p.mark) ? p.mark : "present", attended: true } : p)) };
     store().upsertGame(game);
     if (!wasCounted) applyDemoScores(new Map([[ME_ID, "present"]]), g.startsAt);
     return findGame(id);

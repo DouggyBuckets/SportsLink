@@ -81,9 +81,9 @@ export default function ReliabilityGuide() {
           "location.fill",
           "How attendance is recorded",
           <View style={{ gap: spacing.sm }}>
-            {step(1, "Check in at the field", `Open the game when you get there, from ${minutes(CHECK_IN_OPENS_MIN)} before kickoff to ${minutes(CHECK_IN_CLOSES_MIN)} after. A check-in counts as showing up, and nothing below can change it.`)}
-            {step(2, "The host marks the rest", `Within ${HOST_MARK_HOURS} hours of the game ending, the host marks everyone who didn’t check in.`)}
-            {step(3, "Or the players vote", `If the host doesn’t, the players vote anonymously for the next ${(VOTE_CLOSE_HOURS - HOST_MARK_HOURS) / 24} days, and the majority answer counts. If nobody votes, the game doesn’t count.`)}
+            {step(1, "Check in at the field", `Open the game when you get there, from ${minutes(CHECK_IN_OPENS_MIN)} before kickoff to ${minutes(CHECK_IN_CLOSES_MIN)} after. Once you check in, you can’t be marked a no-show. The host can still mark you late or left early.`)}
+            {step(2, "The host marks the game", `Within ${HOST_MARK_HOURS} hours of the game ending, the host marks how everyone did: showed up, late, left early or no-show.`)}
+            {step(3, "Or the players vote", `If the host doesn’t, the players vote anonymously for the next ${(VOTE_CLOSE_HOURS - HOST_MARK_HOURS) / 24} days on whether each player who didn’t check in showed up. The majority answer counts. If nobody votes, the game doesn’t count.`)}
           </View>
         )}
 
