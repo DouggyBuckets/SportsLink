@@ -257,18 +257,21 @@ export function buildHistory(me: MiniProfile, now = new Date()): Game[] {
   });
 }
 
-// Two upcoming games the viewer is already in: one kicking off in about an
-// hour (inside the late-leave window, to show that warning) and one they're
-// hosting tomorrow evening.
+// Upcoming games for the viewer: one they're in kicking off in 45 minutes
+// (inside the late-leave window, and check-in at the field is open), one
+// they're hosting tomorrow evening, and one whose minimum they're below but
+// whose host invited them, so they can join anyway.
 export function buildMyUpcoming(me: MiniProfile, now = new Date()): Game[] {
   const rand = rng(11);
-  const soon = new Date(Math.ceil((now.getTime() + 75 * 60_000) / (5 * 60_000)) * 5 * 60_000);
+  const soon = new Date(Math.ceil((now.getTime() + 45 * 60_000) / (5 * 60_000)) * 5 * 60_000);
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 18, 0);
   const host = MOCK_USERS.find((u) => u.ratedGames > 0 && u.reliability >= 90) ?? MOCK_USERS[0];
   const base = { sport: SOCCER, customSport: "", locationNote: "", durationMin: 90, skill: "any" as SkillLevel, notes: "", isOfficial: false, visibility: "campus" as const, status: "open" as const, attendanceBy: null, attendanceVote: null };
   const joinedNow = (u: MiniProfile, hosting: boolean): Participant => ({ user: u, status: "joined", joinedAt: new Date(now.getTime() - 3_600_000).toISOString(), confirmed: hosting, mark: null, attended: null });
   const soonSize = formatSizing("5v5", SOCCER);
   const hostSize = formatSizing("7v7", SOCCER);
+  const inviteDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2, 17, 30);
+  const inviter = MOCK_USERS.filter((u) => u.ratedGames > 0 && u.reliability >= 90 && u.id !== host.id)[1] ?? host;
   return [
     {
       ...base,
@@ -292,6 +295,19 @@ export function buildMyUpcoming(me: MiniProfile, now = new Date()): Game[] {
       minReliability: 70,
       host: me,
       participants: [joinedNow(me, true), ...participants(rand, null, 6, tomorrow, 70)],
+    },
+    {
+      ...base,
+      id: "d-invite",
+      format: "7v7",
+      locationId: "hubbard-turf",
+      startsAt: inviteDay.toISOString(),
+      ...hostSize,
+      minReliability: 90,
+      notes: "Competitive run. Invite only if you're under 90%.",
+      host: mini(inviter),
+      invitedMe: true,
+      participants: participants(rand, inviter, 9, inviteDay, 90),
     },
   ];
 }

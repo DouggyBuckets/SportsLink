@@ -13,7 +13,8 @@ import { Header, HeaderTextButton } from "@/components/ui/header";
 import { Divider } from "@/components/ui/list-section";
 import { fonts, spacing, typeScale } from "@/constants/theme";
 import { Alert } from "@/lib/alert";
-import { cancelGame, confirmSpot, joinGame, leaveGame } from "@/lib/api";
+import { cancelGame, checkIn, confirmSpot, joinGame, leaveGame } from "@/lib/api";
+import { CHECK_IN_CLOSES_MIN, CHECK_IN_OPENS_MIN, checkInField, checkInState } from "@/lib/checkin";
 import { formatDuration, formatTime, formatWhen, gameEnd } from "@/lib/dates";
 import { mapsUrl, placeName } from "@/lib/locations";
 import { isLateLeave, LATE_LEAVE_HOURS, meetsMinimum, minReliabilityLabel } from "@/lib/reliability";
@@ -69,7 +70,11 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
   const canConfirm = open && status === "joined" && !mine?.confirmed && msToStart < CONFIRM_WINDOW_MS;
   const marking = needsAttendance(game, meId, new Date(now));
   const voting = canVote(game, meId, new Date(now));
-  const allowed = !me || meetsMinimum(me, game.minReliability);
+  const belowMin = !!me && !meetsMinimum(me, game.minReliability);
+  const allowed = !belowMin || !!game.invitedMe;
+  const checkin = checkInState(game, meId, now);
+  const field = checkInField(game);
+  const invited = game.invited ?? [];
   const spotsLeft = game.capacity - players.length;
   const late = isLateLeave(game, now);
   const leaveBy = new Date(new Date(game.startsAt).getTime() - LATE_LEAVE_HOURS * 3_600_000);
@@ -122,7 +127,9 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
           </Text>
           {game.host?.id === p.user.id ? <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.caption, color: colors.tint }}>Host</Text> : null}
         </View>
-        {p.mark ? (
+        {p.checkedInAt ? (
+          <Badge label="Checked in" tone="success" icon="location.fill" />
+        ) : p.mark ? (
           <MarkBadge mark={p.mark} />
         ) : (
           <>
@@ -155,6 +162,40 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
           <Badge label={minReliabilityLabel(game.minReliability)} tone={game.minReliability ? "info" : "neutral"} />
           <Badge label={skillLabel(game.skill)} />
         </View>
+
+        {checkin === "open" || checkin === "early" ? (
+          <Card tone="maize">
+            <View style={{ gap: spacing.sm }}>
+              <Text style={{ fontFamily: fonts.heading, fontSize: typeScale.subtitle, color: colors.text }}>Check in at {field?.name}</Text>
+              <Text style={{ fontFamily: fonts.body, fontSize: typeScale.body, lineHeight: 21, color: colors.textSecondary }}>
+                {checkin === "open"
+                  ? "At the field? Check in and this game counts as showing up, no matter what the host or a vote says."
+                  : `Check-in opens at ${formatTime(new Date(new Date(game.startsAt).getTime() - CHECK_IN_OPENS_MIN * 60_000))} and stays open until ${formatTime(new Date(new Date(game.startsAt).getTime() + CHECK_IN_CLOSES_MIN * 60_000))}.`}
+              </Text>
+              {checkin === "open" ? <Button label="Check in" variant="primary" size="md" icon="location.fill" loading={busy} onPress={() => run(() => checkIn(game.id), "Couldn't check in")} /> : null}
+            </View>
+          </Card>
+        ) : null}
+
+        {checkin === "done" ? (
+          <Card>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+              <Icon name="checkmark.circle.fill" size={22} color={colors.success} />
+              <Text style={{ flex: 1, fontFamily: fonts.bodyMedium, fontSize: typeScale.body, lineHeight: 20, color: colors.text }}>You’re checked in. This game counts as showing up.</Text>
+            </View>
+          </Card>
+        ) : null}
+
+        {game.invitedMe && status === null && open ? (
+          <Card tone="maize">
+            <View style={{ gap: 4 }}>
+              <Text style={{ fontFamily: fonts.heading, fontSize: typeScale.subtitle, color: colors.text }}>{game.host ? `${game.host.name} invited you` : "You're invited"}</Text>
+              <Text style={{ fontFamily: fonts.body, fontSize: typeScale.body, lineHeight: 21, color: colors.textSecondary }}>
+                {belowMin ? `The host’s invite lets you in even though this game needs ${game.minReliability}%.` : "Jump in if you can make it."}
+              </Text>
+            </View>
+          </Card>
+        ) : null}
 
         {canConfirm ? (
           <Card tone="maize">
@@ -216,6 +257,26 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
         </Card>
 
         {host && open ? (
+          <Card padding={0}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: "/invite/[id]", params: { id: game.id } })}
+              style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md, opacity: pressed ? 0.6 : 1 })}
+            >
+              <Icon name="person.badge.plus" size={20} color={colors.tint} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: typeScale.body, color: colors.text }}>Invite players</Text>
+                <Text style={{ fontFamily: fonts.body, fontSize: typeScale.caption, color: colors.textSecondary }}>
+                  {invited.length ? `${invited.length} invited · ` : ""}
+                  {game.minReliability ? `Invited players can join below ${game.minReliability}%` : "Let friends know about your game"}
+                </Text>
+              </View>
+              <Icon name="chevron.right" size={13} color={colors.textTertiary} />
+            </Pressable>
+          </Card>
+        ) : null}
+
+        {host && open ? (
           <View style={{ flexDirection: "row", gap: spacing.xs }}>
             <View style={{ flex: 1 }}>
               <Button label="Edit game" variant="secondary" size="md" icon="pencil" fullWidth onPress={() => router.push({ pathname: "/post-game", params: { edit: game.id } })} />
@@ -234,7 +295,10 @@ function Details({ game, bottomInset }: { game: Game; bottomInset: number }) {
             <>
               {!allowed && me ? (
                 <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.label, color: colors.danger, textAlign: "center" }}>
-                  This game needs {game.minReliability}%+ reliability. You’re at {me.reliability}%.
+                  This game needs {game.minReliability}%+ reliability. You’re at {me.reliability}%.{" "}
+                  <Text onPress={() => router.push("/reliability")} style={{ color: colors.tint }}>
+                    Learn more
+                  </Text>
                 </Text>
               ) : null}
               <Button

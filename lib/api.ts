@@ -1,3 +1,5 @@
+import * as Location from "expo-location";
+import { checkInField, CHECK_IN_RADIUS_M, distanceM, formatDistance } from "@/lib/checkin";
 import { dayKey } from "@/lib/dates";
 import { buildGames, buildHistory, buildMyUpcoming, historyStats, ME_ID, mini, MOCK_USERS, mockUserById } from "@/lib/mock";
 import { cancelAllGameReminders, cancelGameReminder, scheduleGameReminder, syncGameReminders } from "@/lib/notifications";
@@ -207,7 +209,7 @@ export async function joinGame(id: string): Promise<Game> {
   if (DEMO) {
     const g = findGame(id);
     if (g.participants.some((p) => p.user.id === ME_ID)) return g;
-    if (!meetsMinimum(store().me!, g.minReliability)) throw new Error(`This game needs a reliability of ${g.minReliability}% or higher.`);
+    if (!g.invitedMe && !meetsMinimum(store().me!, g.minReliability)) throw new Error(`This game needs a reliability of ${g.minReliability}% or higher.`);
     if (joinedCount(g) >= g.capacity) throw new Error("This game is full.");
     const spot: Participant = {
       user: meMini(),
@@ -316,7 +318,8 @@ export async function markAttendance(id: string, marks: Record<string, Attendanc
   let game: Game;
   if (DEMO) {
     const g = findGame(id);
-    const markOf = (userId: string): AttendanceMark => marks[userId] ?? "no_show";
+    const checkedIn = new Set(g.participants.filter((p) => p.checkedInAt).map((p) => p.user.id));
+    const markOf = (userId: string): AttendanceMark => (checkedIn.has(userId) ? "present" : (marks[userId] ?? "no_show"));
     // Only players marked for the first time move their score.
     const changed = new Map(g.participants.filter((p) => p.mark === null).map((p) => [p.user.id, markOf(p.user.id)]));
     game = {
@@ -386,6 +389,54 @@ function applyDemoScores(changed: Map<string, AttendanceMark>, at: string) {
   };
   const s = store();
   s.patch({ games: s.games.map((g) => ({ ...g, host: g.host && bump(g.host), participants: g.participants.map((p) => ({ ...p, user: bump(p.user) })) })) });
+}
+
+// ── Check-in ────────────────────────────────────────────────────────────
+
+// Checks the viewer in at the game's field. Asks for location permission,
+// reads the phone's position and (in live mode) lets `check_in` verify it.
+export async function checkIn(id: string): Promise<Game> {
+  const g = findGame(id);
+  const field = checkInField(g);
+  if (!field) throw new Error("Check-in only works at listed fields. The host marks attendance for this game.");
+  const { granted } = await Location.requestForegroundPermissionsAsync();
+  if (!granted) throw new Error("SportsLink needs your location to check you in. You can turn it on in Settings.");
+  const { coords } = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+  let game: Game;
+  if (DEMO) {
+    const away = distanceM(coords.latitude, coords.longitude, field.lat, field.lng);
+    if (away > CHECK_IN_RADIUS_M) throw new Error(`You're about ${formatDistance(away)} from ${field.name}. Check in once you're at the field.`);
+    const now = new Date().toISOString();
+    const wasCounted = g.participants.find((p) => p.user.id === ME_ID)?.mark;
+    game = { ...g, participants: g.participants.map((p) => (p.user.id === ME_ID ? { ...p, checkedInAt: now, mark: "present", attended: true } : p)) };
+    store().upsertGame(game);
+    if (!wasCounted) applyDemoScores(new Map([[ME_ID, "present"]]), g.startsAt);
+    return findGame(id);
+  }
+  game = await rpc<Game>("check_in", { p_game_id: id, p_lat: coords.latitude, p_lng: coords.longitude });
+  store().upsertGame(game);
+  loadAll().catch(() => {});
+  return game;
+}
+
+// ── Host invites ────────────────────────────────────────────────────────
+// The host can invite anyone; an invited player can join even if they're
+// below the game's minimum reliability (enforced again in `join_game`).
+
+export async function invitePlayer(id: string, user: MiniProfile): Promise<Game> {
+  const game = DEMO
+    ? { ...findGame(id), invited: [...(findGame(id).invited ?? []).filter((u) => u.id !== user.id), user] }
+    : await rpc<Game>("invite_players", { p_game_id: id, p_user_ids: [user.id] });
+  store().upsertGame(game);
+  return game;
+}
+
+export async function uninvitePlayer(id: string, userId: string): Promise<Game> {
+  const game = DEMO
+    ? { ...findGame(id), invited: (findGame(id).invited ?? []).filter((u) => u.id !== userId) }
+    : await rpc<Game>("uninvite_player", { p_game_id: id, p_user_id: userId });
+  store().upsertGame(game);
+  return game;
 }
 
 export async function inviteFriends(gameId: string, friendIds: string[]) {

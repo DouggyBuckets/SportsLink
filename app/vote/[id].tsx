@@ -50,7 +50,9 @@ export default function Vote() {
     );
   }
 
-  const others = joinedPlayers(game).filter((p) => p.user.id !== meId);
+  // Players who checked in at the field already count as there.
+  const others = joinedPlayers(game).filter((p) => p.user.id !== meId && !p.checkedInAt);
+  const checkedIn = joinedPlayers(game).filter((p) => p.user.id !== meId && p.checkedInAt).length;
   const voted = hasVoted(game);
 
   const pick = (userId: string, showed: boolean) => {
@@ -141,6 +143,11 @@ export default function Vote() {
             );
           })}
         </Card>
+        {checkedIn ? (
+          <Text style={{ fontFamily: fonts.body, fontSize: typeScale.caption, color: colors.textTertiary, textAlign: "center" }}>
+            {checkedIn} player{checkedIn === 1 ? "" : "s"} checked in at the field, so they already count as there.
+          </Text>
+        ) : null}
       </ScrollView>
       <View style={{ gap: spacing.xs, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: insets.bottom + spacing.sm, borderTopWidth: 1, borderTopColor: colors.divider, backgroundColor: colors.cardSolid }}>
         <Text style={{ fontFamily: fonts.bodyMedium, fontSize: typeScale.caption, color: colors.textSecondary, textAlign: "center" }}>

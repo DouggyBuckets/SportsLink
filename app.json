@@ -41,7 +41,13 @@
       "expo-image",
       "expo-font",
       "expo-notifications",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "SportsLink uses your location only when you check in at a game, to confirm you're at the field."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

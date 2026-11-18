@@ -27,7 +27,11 @@ export default function Games() {
 
   // Games whose minimum reliability is above yours are hidden: you can't
   // join them, so they'd only clutter the list. Your own games always show.
-  const feed = useMemo(() => upcomingFeed(games).filter((g) => !me || myStatus(g, me.id) !== null || meetsMinimum(me, g.minReliability)), [games, me]);
+  // Host invites override the minimum, so those games show too.
+  const visible = useMemo(() => upcomingFeed(games).filter((g) => !me || myStatus(g, me.id) !== null || g.invitedMe || meetsMinimum(me, g.minReliability)), [games, me]);
+  // Invites the viewer hasn't acted on get their own section up top.
+  const invites = visible.filter((g) => g.invitedMe && myStatus(g, me?.id) === null);
+  const feed = visible.filter((g) => !invites.includes(g));
   const fits = feed.filter((g) => fitsSchedule(g, availability));
   const others = feed.filter((g) => !fitsSchedule(g, availability));
   // With no free time set there's nothing to filter by, so show everything.
@@ -63,6 +67,15 @@ export default function Games() {
         }
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.tint} />}
       >
+        {invites.length ? (
+          <>
+            <SectionTitle title="You're invited" />
+            {invites.map((g) => (
+              <GameCard key={g.id} game={g} />
+            ))}
+          </>
+        ) : null}
+
         {availability.length ? (
           <SegmentedTabs
             value={view}

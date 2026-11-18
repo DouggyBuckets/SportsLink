@@ -3,7 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { Pressable, Text, View } from "react-native";
 import { GameCard } from "@/components/game-card";
 import { MarkBadge } from "@/components/attendance-bits";
-import { RecoveryExplainer, ReliabilityCard, soccerLevel } from "@/components/profile-bits";
+import { ReliabilityCard, soccerLevel } from "@/components/profile-bits";
 import { useAppTheme } from "@/components/theme";
 import { Avatar, Badge, EmptyState, SectionTitle } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
@@ -51,13 +51,16 @@ export default function ProfileTab() {
 
       <ReliabilityCard
         user={me}
-        history={past.flatMap((g) => {
-          // Only games that count; ones still waiting on the host or a vote don't.
-          const mark = g.participants.find((p) => p.user.id === me.id)?.mark;
-          return mark ? [{ at: g.startsAt, mark }] : [];
-        })}
+        history={games
+          .filter((g) => g.status !== "cancelled")
+          .flatMap((g) => {
+            // Only games that count: marked, voted on, or checked in to (which
+            // counts as soon as you check in, before the game ends).
+            const mark = g.participants.find((p) => p.user.id === me.id)?.mark;
+            return mark ? [{ at: g.startsAt, mark }] : [];
+          })
+          .sort((a, b) => b.at.localeCompare(a.at))}
       />
-      {me.ratedGames > me.attended || me.reliability < 100 ? <RecoveryExplainer /> : null}
 
       <View style={{ marginTop: spacing.sm }}>
         <SectionTitle title="Upcoming" />

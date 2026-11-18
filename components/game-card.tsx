@@ -43,7 +43,7 @@ export function GameCard({ game, fits, freeBadge }: GameCardProps) {
   const players = joinedPlayers(game);
   const fill = fillState(game);
   const status = myStatus(game, me?.id);
-  const allowed = !me || meetsMinimum(me, game.minReliability);
+  const allowed = !me || meetsMinimum(me, game.minReliability) || !!game.invitedMe;
 
   const onJoin = async () => {
     setJoining(true);
@@ -79,7 +79,7 @@ export function GameCard({ game, fits, freeBadge }: GameCardProps) {
             <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.display, fontSize: typeScale.subtitle, color: colors.text }}>
               {title}
             </Text>
-            {status === "joined" ? <Badge label="You're in" tone="maize" /> : freeBadge ? <Badge label="You're free" tone="success" icon="checkmark" /> : null}
+            {status === "joined" ? <Badge label="You're in" tone="maize" /> : game.invitedMe ? <Badge label="Invited" tone="maize" icon="envelope.fill" /> : freeBadge ? <Badge label="You're free" tone="success" icon="checkmark" /> : null}
           </View>
 
           <View style={{ paddingLeft: 17, gap: 3 }}>

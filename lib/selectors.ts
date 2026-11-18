@@ -44,14 +44,17 @@ export type AttendancePhase = "none" | "host" | "vote" | "settled" | "expired";
 
 export function attendancePhase(g: Game, now = new Date()): AttendancePhase {
   if (g.status === "cancelled" || !hasStarted(g, now)) return "none";
-  if (g.attendanceBy) return "settled";
+  // Everyone checked in at the field: nothing left for the host or a vote.
+  if (g.attendanceBy || joinedPlayers(g).every((p) => p.checkedInAt)) return "settled";
   const hoursSinceEnd = (now.getTime() - gameEnd(g).getTime()) / 3_600_000;
   if (hoursSinceEnd < HOST_MARK_HOURS) return "host";
   if (hoursSinceEnd < VOTE_CLOSE_HOURS) return "vote";
   return "expired";
 }
 
-const othersIn = (g: Game, meId: string | undefined) => joinedPlayers(g).some((p) => p.user.id !== meId);
+// Other players whose attendance still needs settling (checked-in players
+// already count).
+const othersIn = (g: Game, meId: string | undefined) => joinedPlayers(g).some((p) => p.user.id !== meId && !p.checkedInAt);
 
 // A hosted game that has kicked off and is waiting on the host to mark it.
 export const needsAttendance = (g: Game, meId: string | undefined, now = new Date()) => isHost(g, meId) && othersIn(g, meId) && attendancePhase(g, now) === "host";

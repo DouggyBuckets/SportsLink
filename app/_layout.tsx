@@ -130,6 +130,8 @@ function RootNav() {
           <Stack.Screen name="post-game" options={{ presentation: "modal" }} />
           <Stack.Screen name="attendance/[id]" options={{ presentation: "modal" }} />
           <Stack.Screen name="vote/[id]" options={{ presentation: "modal" }} />
+          <Stack.Screen name="invite/[id]" options={{ presentation: "modal" }} />
+          <Stack.Screen name="reliability" options={{ presentation: "modal" }} />
           <Stack.Screen name="user/[id]" options={sheet([0.6, 1])} />
           <Stack.Screen name="profile-edit" options={{ presentation: "modal" }} />
         </Stack.Protected>

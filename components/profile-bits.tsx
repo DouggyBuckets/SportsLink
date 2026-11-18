@@ -6,8 +6,8 @@ import { useAppTheme } from "@/components/theme";
 import { Badge } from "@/components/ui/bits";
 import { Card } from "@/components/ui/card";
 import { fonts, spacing, typeScale } from "@/constants/theme";
-import { Alert } from "@/lib/alert";
-import { gamesUntil, isNewPlayer, LATE_LEAVE_HOURS, MARK_CREDIT, nextThreshold, reliabilityTier, reliabilityTone, weeklyChange, weeksLabel, weeksUntil } from "@/lib/reliability";
+import { useRouter } from "expo-router";
+import { gamesUntil, isNewPlayer, nextThreshold, reliabilityTier, reliabilityTone, weeklyChange, weeksLabel, weeksUntil } from "@/lib/reliability";
 import { skillLabel } from "@/lib/sports";
 import { AttendanceMark, Profile } from "@/lib/types";
 import { Icon } from "@/components/ui/icon";
@@ -95,18 +95,6 @@ function RecentGames({ history }: { history: RecentGame[] }) {
   );
 }
 
-const explain = () =>
-  Alert.alert(
-    "Reliability score",
-    [
-      "Everyone starts at 100%.",
-      `After each game the host marks how each player did: present (full credit), late (${MARK_CREDIT.late * 100}%), left early (${MARK_CREDIT.left_early * 100}%) or no-show. If the host doesn't mark it within a day, the players vote.`,
-      `Leaving less than ${LATE_LEAVE_HOURS} hours before kickoff counts as a miss.`,
-      "Misses count less every week, so a low score recovers on its own, and faster when you play.",
-      "Hosts can require a minimum score to join.",
-    ].join("\n\n")
-  );
-
 // Where a below-par score is heading: the next minimum hosts set, how long
 // until the player reaches it, and how many games would get them there now.
 function Recovery({ user, color }: { user: Profile; color: string }) {
@@ -141,6 +129,7 @@ function Recovery({ user, color }: { user: Profile; color: string }) {
 // `history` (own profile only): counted games, newest first.
 export function ReliabilityCard({ user, history }: { user: Profile; history?: RecentGame[] }) {
   const { colors } = useAppTheme();
+  const router = useRouter();
   const change = user.scoreEvents && !isNewPlayer(user) ? weeklyChange(user.scoreEvents) : 0;
   const tone = reliabilityTone(user);
   const color = tone === "neutral" ? colors.success : colors[tone];
@@ -152,8 +141,9 @@ export function ReliabilityCard({ user, history }: { user: Profile; history?: Re
       <View style={{ gap: spacing.md }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <Text style={{ fontFamily: fonts.heading, fontSize: typeScale.subtitle, color: colors.text }}>Reliability score</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="How the reliability score works" hitSlop={10} onPress={explain} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-            <Icon name="info.circle" size={20} color={colors.textTertiary} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Learn how the reliability score works" hitSlop={10} onPress={() => router.push("/reliability")} style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 4, opacity: pressed ? 0.5 : 1 })}>
+            <Icon name="info.circle" size={16} color={colors.tint} />
+            <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: typeScale.label, color: colors.tint }}>Learn more</Text>
           </Pressable>
         </View>
 
@@ -177,24 +167,6 @@ export function ReliabilityCard({ user, history }: { user: Profile; history?: Re
         </View>
 
         {recent.length ? <RecentGames history={recent} /> : null}
-      </View>
-    </Card>
-  );
-}
-
-// Own profile, once there's a miss to recover from.
-export function RecoveryExplainer() {
-  const { colors } = useAppTheme();
-  return (
-    <Card>
-      <View style={{ flexDirection: "row", gap: spacing.sm }}>
-        <Icon name="clock" size={18} color={colors.tint} style={{ marginTop: 1 }} />
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ fontFamily: fonts.heading, fontSize: typeScale.body, color: colors.text }}>How recovery works</Text>
-          <Text style={{ fontFamily: fonts.body, fontSize: typeScale.label, lineHeight: 18, color: colors.textSecondary }}>
-            Misses count less as they get older, and each game you show up to adds back more. One rough week won’t lock you out for the semester.
-          </Text>
-        </View>
       </View>
     </Card>
   );

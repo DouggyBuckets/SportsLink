@@ -82,8 +82,9 @@ export const useAppStore = create<AppState>()(
       // Account, profile and free time carry over. v3: MVP1 - soccer only,
       // reliability always a number (new players start at 100). v4: no waitlist.
       // v5: profiles carry `attended`. v7: MVP2 - attendance marks, votes and
-      // fading misses (the demo history is rebuilt to match).
-      version: 7,
+      // fading misses (the demo history is rebuilt to match). v8: MVP3 -
+      // check-in and host invites (the demo world is rebuilt to show them).
+      version: 8,
       migrate: (persisted) => {
         const data = persisted as Data;
         const me = data.me

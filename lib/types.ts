@@ -53,6 +53,9 @@ export type Participant = {
   // attended is false only for a no-show.
   mark: AttendanceMark | null;
   attended: boolean | null;
+  // Set when the player checked in at the field (lib/checkin.ts). A check-in
+  // counts as showing up, whatever the host or a vote says.
+  checkedInAt?: string | null;
 };
 
 // Open while players vote on a game whose host didn't mark attendance in
@@ -94,6 +97,10 @@ export type Game = {
   // Who settled attendance: the host, or the players by vote. null = not yet.
   attendanceBy: "host" | "vote" | null;
   attendanceVote: AttendanceVote | null;
+  // The host invited the viewer, so the minimum reliability doesn't apply.
+  invitedMe?: boolean;
+  // Host only: players they've invited who haven't joined yet.
+  invited?: MiniProfile[];
 };
 
 export type NewGame = Pick<

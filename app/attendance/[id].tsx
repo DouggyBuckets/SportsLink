@@ -5,7 +5,7 @@ import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MarkCreditBadge } from "@/components/attendance-bits";
 import { useAppTheme } from "@/components/theme";
-import { Avatar, EmptyState, SectionTitle } from "@/components/ui/bits";
+import { Avatar, Badge, EmptyState, SectionTitle } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Header, HeaderTextButton } from "@/components/ui/header";
@@ -88,9 +88,10 @@ export default function Attendance() {
                     <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.bodyMedium, fontSize: typeScale.body, color: colors.text }}>
                       {p.user.name}
                     </Text>
-                    <MarkCreditBadge mark={marks[p.user.id]} />
+                    {p.checkedInAt ? <Badge label="Checked in" tone="success" icon="location.fill" /> : <MarkCreditBadge mark={marks[p.user.id]} />}
                   </View>
-                  <SegmentedTabs value={marks[p.user.id]} onChange={(m) => setMark(p.user.id, m)} options={MARKS.map((m) => ({ value: m, label: MARK_LABEL[m] }))} />
+                  {/* A check-in at the field already counts; the host can't change it. */}
+                  {p.checkedInAt ? null : <SegmentedTabs value={marks[p.user.id]} onChange={(m) => setMark(p.user.id, m)} options={MARKS.map((m) => ({ value: m, label: MARK_LABEL[m] }))} />}
                 </View>
               </View>
             ))
